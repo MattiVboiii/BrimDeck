@@ -26,8 +26,12 @@ try {
     $sensorsSha256 = (Get-FileHash -LiteralPath $sensors.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     dotnet publish src/BrimDeck/BrimDeck.csproj -c Release -r win-x64 --self-contained true -p:Version=$Version -p:PublishSingleFile=false -p:SensorsSha256=$sensorsSha256 -o $publishPath
     if ($LASTEXITCODE -ne 0) { throw 'Application publish failed.' }
+    . (Join-Path $PSScriptRoot 'Get-RepositoryBuildProperties.ps1')
+    $repoProps = Get-RepositoryBuildProperties
     $iscc = & (Join-Path $PSScriptRoot 'Get-InnoSetup.ps1')
-    & $iscc -qp "-dAppVersion=$Version" "-dSourceDir=$publishPath" "-o$outputPath" installer/BrimDeck.iss
+    & $iscc -qp "-dAppVersion=$Version" "-dSourceDir=$publishPath" "-dAppId=$($repoProps.InstallerAppId)" "-dDataDirSubfolder=$($repoProps.DataDirSubfolder)" `
+        "-dAppPublisher=$($repoProps.AppPublisher)" "-dAppPublisherURL=$($repoProps.AppPublisherURL)" "-dAppSupportURL=$($repoProps.AppSupportURL)" `
+        "-dAppUpdatesURL=$($repoProps.AppUpdatesURL)" "-dAppCopyright=$($repoProps.AppCopyright)" "-o$outputPath" installer/BrimDeck.iss
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
     $installer = Get-Item -LiteralPath (Join-Path $outputPath "BrimDeck-$Version-Setup.exe")
     $portable = New-PortablePackage -SourceDir $publishPath -Destination (Join-Path $outputPath "BrimDeck-$Version-Portable-x64.zip")

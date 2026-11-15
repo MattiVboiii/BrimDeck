@@ -1,5 +1,6 @@
 using System.IO;
 using System.Net.Http;
+using System.Reflection;
 using BrimDeck.Core;
 using Microsoft.Win32;
 
@@ -7,9 +8,13 @@ namespace BrimDeck.Updates;
 
 internal static class GitHubUpdates
 {
-    public const string RepositoryUrl = "https://github.com/MoFeng2223/BrimDeck";
+    private static string? Metadata(string key) => typeof(GitHubUpdates).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(attribute => attribute.Key == key)?.Value;
+
+    // Overridden for this fork via BrimDeckRepositoryUrl in ForkRepositoryMetadata.targets / Directory.Build.props.
+    public static string RepositoryUrl => Metadata("BrimDeckRepositoryUrl") ?? "https://github.com/MoFeng2223/BrimDeck";
     // Must match AppId in installer/BrimDeck.iss. Inno Setup registers the uninstall entry as "<AppId>_is1".
-    public const string InstallerAppId = "{9D9AD6ED-CF62-4527-A587-6DBE94A74B9E}";
+    public static string InstallerAppId => Metadata("BrimDeckInstallerAppId") ?? "{9D9AD6ED-CF62-4527-A587-6DBE94A74B9E}";
     public static string BuildVersion => ApplicationVersion.Current;
     private static readonly HttpClient Http = CreateClient();
 
