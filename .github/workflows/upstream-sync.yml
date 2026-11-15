@@ -36,9 +36,7 @@ jobs:
             exit 0
           fi
           existing="$(gh pr list --repo "${GITHUB_REPOSITORY}" --base matti --head main --state open --json number --jq '.[0].number // empty')"
-          body="This PR fast-forwards \`matti\` with upstream changes already merged into \`main\` (${behind} commit(s) on \`main\` not in \`matti\`).
-
-Review the diff, resolve conflicts if any, then merge manually. This workflow never auto-merges."
+          body="$(printf 'This PR brings upstream changes from main into matti (%s commit(s) on main not in matti).\n\nReview the diff, resolve conflicts if any, then merge manually. This workflow never auto-merges.' "$behind")"
           if [ -n "$existing" ]; then
             gh pr edit "$existing" --body "$body"
             echo "Updated existing PR #$existing"
