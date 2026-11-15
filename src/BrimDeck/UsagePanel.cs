@@ -405,6 +405,7 @@ public partial class MainWindow
             Grid.SetColumn(marker, 2); head.Children.Add(marker);
             marker.Measure(new Size(double.PositiveInfinity, layout.Head)); occupied += marker.DesiredSize.Width + 8;
         }
+        AddCursorAgentChip(entry, head, layout, chipTop, chipLift, ref occupied);
         name.MaxWidth = Math.Max(20, innerWidth - occupied);
         // The page stretches within its size step instead of being built again (RenderUsage), so the name gives way to the plan
         // as the column's width changes.

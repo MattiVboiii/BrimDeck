@@ -108,6 +108,8 @@ static class DevicesPageTests
         var older = CompactMonitor.Normalize([new CompactReading { Item = CompactMonitorItems.Cpu }, new CompactReading { Item = CompactMonitorItems.Battery }]);
         check("Battery reading: retired, a saved table drops it", older.All(r => r.Item != CompactMonitorItems.Battery)
             && !CompactMonitor.Order.Contains(CompactMonitorItems.Battery) && (CompactMonitor.Every & CompactMonitorItems.Battery) == 0);
-        check("Devices part: a saved order without it takes it at the end", CompactParts.Normalize([CompactPart.Clock, CompactPart.Rings]).Last() == CompactPart.Devices);
+        var filled = CompactParts.Normalize([CompactPart.Clock, CompactPart.Rings]);
+        check("Devices part: a saved order without it takes it before newer parts at the end",
+            filled.Contains(CompactPart.Devices) && filled.Last() == CompactPart.Agent && filled[^2] == CompactPart.Devices);
     }
 }

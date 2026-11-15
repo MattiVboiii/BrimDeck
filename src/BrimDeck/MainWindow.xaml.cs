@@ -163,6 +163,7 @@ public partial class MainWindow : Window
         InitializeScale();
         InitializeShadow();
         InitializeThemeFade();
+        AttachCursorAgentWatcher();
         Island.Background = _surface;
         _refresh.Tick += async (_, _) => await RefreshAutomaticallyAsync();
         _clock.Tick += (_, _) => { UpdateClock(); ScheduleClock(); if (_expanded) RenderUsage(); else if (OffPeakChanged()) RenderCompact(); if (_lead is null) _app.CheckUpdatesIfDue(); };

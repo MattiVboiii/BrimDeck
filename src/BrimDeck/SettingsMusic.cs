@@ -88,6 +88,8 @@ public sealed partial class SettingsWindow
                 Loc.T("显示文件中转里的文件数量，没有文件时不显示。单击直接展开到剪贴板与文件中转页。", "Shows how many files the file transfer holds, and nothing while it is empty. Clicking it opens the clipboard and file transfer page.")),
             CompactPart.Devices => (Loc.T("设备电量", "Device batteries"), S.ShowsDevices(style),
                 Loc.T("显示哪些设备、是否显示数字，在“设备电量”设置页中选择。", "Which devices show, and whether with figures, is chosen on the device batteries settings page.")),
+            CompactPart.Agent => (Loc.T("Cursor 代理", "Cursor agent"), S.ShowsAgent(style),
+                Loc.T("代理工作时显示“Cursor 代理运行中”。顺序可拖动；开关与“配额与统计”中的 Cursor 代理活动相同。", "Shows “Cursor agent running” while an agent is working. Drag to reorder; the switch matches Cursor agent activity under Quotas and usage.")),
             _ => (Loc.T("系统监控", "System monitor"), S.ShowsMonitor(style), null)
         };
         void Show(bool on) => Change(s =>
@@ -99,6 +101,7 @@ public sealed partial class SettingsWindow
                 case CompactPart.Equalizer: if (notch) s.NotchEqualizer = on; else s.CapsuleEqualizer = on; break;
                 case CompactPart.Transfer: if (notch) s.NotchTransfer = on; else s.CapsuleTransfer = on; break;
                 case CompactPart.Devices: if (notch) s.NotchDevices = on; else s.CapsuleDevices = on; break;
+                case CompactPart.Agent: s.CursorAgentLive = on; break;
                 default: if (notch) s.NotchMonitor = on; else s.CapsuleMonitor = on; break;
             }
         });

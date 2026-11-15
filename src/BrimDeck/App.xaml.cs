@@ -130,6 +130,7 @@ public partial class App : Application
         LastSeen = new UsageLastSeen(Path.Combine(folder, UsageLastSeen.FileName));
         WindowDrags = new WindowDrags();
         Shelf = new ShelfService(folder, Dispatcher); Shelf.Apply(Settings);
+        StartCursorAgentWatcher();
         Deck = new MainWindow(this); MainWindow = Deck;
         Displays = Native.Displays.Current(); AssignDisplays();
         Deck.Show();
@@ -256,6 +257,7 @@ public partial class App : Application
         // Every other profile's settings are made again from the new ones as panels ask for them.
         _profileSettings.Clear();
         RefreshHoldingRule();
+        ApplyCursorAgentWatcher();
         if (memoryChanged) ApplyMemoryMode();
         // A monitor page switched on in the smooth mode has its counters set up ahead, as at start.
         else if (MemoryPlan.WarmAtStart) WarmMonitor();

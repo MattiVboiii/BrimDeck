@@ -118,6 +118,7 @@ try
     await GrokBotUsageTests.Run(root, Check);
     await CursorUsageTests.Run(root, Check);
     await CursorPricesTests.Run(root, Check);
+    CursorAgentActivityTests.Run(Check);
     PointerMotionTests.Run(Check);
     var priceTime = DateTimeOffset.UtcNow;
     const string catalogJson = """

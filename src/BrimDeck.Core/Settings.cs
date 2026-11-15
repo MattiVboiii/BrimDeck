@@ -77,14 +77,15 @@ public enum EqualizerMode { Flow = 0, Spectrum = 1 }
 public enum QuotaRingStyle { Nested = 0, Single = 1 }
 // The parts of the collapsed notch and capsule that are put in order, left to right. The cover stays at the left; Music places
 // only the title or lyric. Saved as numbers, so new members go at the end.
-public enum CompactPart { Rings, Music, Monitor, Equalizer, Clock, Transfer, Devices }
+public enum CompactPart { Rings, Music, Monitor, Equalizer, Clock, Transfer, Devices, Agent }
 public static class CompactParts
 {
-    // The order of new settings and of restoring the defaults: the equalizer and the clock come last.
-    public static IReadOnlyList<CompactPart> Default { get; } = [CompactPart.Rings, CompactPart.Music, CompactPart.Monitor, CompactPart.Transfer, CompactPart.Devices, CompactPart.Equalizer, CompactPart.Clock];
+    // The order of new settings and of restoring the defaults: the equalizer and the clock come last; Agent leads when present.
+    public static IReadOnlyList<CompactPart> Default { get; } = [CompactPart.Agent, CompactPart.Rings, CompactPart.Music, CompactPart.Monitor, CompactPart.Transfer, CompactPart.Devices, CompactPart.Equalizer, CompactPart.Clock];
     // The order in which parts missing from a saved file are added after its own. A file saved before the equalizer and the clock
-    // were put in order adds them after its parts, the clock last, where they stood; the devices' batteries (1.3.0) join last.
-    private static readonly IReadOnlyList<CompactPart> Missing = [CompactPart.Rings, CompactPart.Music, CompactPart.Monitor, CompactPart.Equalizer, CompactPart.Clock, CompactPart.Transfer, CompactPart.Devices];
+    // were put in order adds them after its parts, the clock last, where they stood; the devices' batteries (1.3.0) join last;
+    // Cursor agent activity (fork) joins last of all.
+    private static readonly IReadOnlyList<CompactPart> Missing = [CompactPart.Rings, CompactPart.Music, CompactPart.Monitor, CompactPart.Equalizer, CompactPart.Clock, CompactPart.Transfer, CompactPart.Devices, CompactPart.Agent];
     // Each known part once, in the saved order; a part missing from the file takes its place after the others.
     public static List<CompactPart> Normalize(IEnumerable<CompactPart>? order) => [.. (order ?? []).Where(part => Enum.IsDefined(part)).Concat(Missing).Distinct()];
 }
@@ -741,6 +742,8 @@ public sealed class DeckSettings
     public bool SettingsWindowMaximized { get; set; }
     // Shows the compact notice when a quota rises into the warning or critical level.
     public bool QuotaAlerts { get; set; } = true;
+    // Shows Cursor Composer/Agent Active/Idle on the usage page and a brief pulse on the collapsed island (best-effort local read).
+    public bool CursorAgentLive { get; set; } = true;
     // Also reads the Claude Code and Codex CLI session records inside WSL distributions. Off by default: it starts stopped distributions.
     public bool IncludeWsl { get; set; }
     // The named profiles (DeckProfile, Profiles). The current one's settings are the ordinary members of this class; ReturnProfile is
@@ -766,6 +769,8 @@ public sealed class DeckSettings
     // The indicator is too thin for readings, as for the clock.
     public bool ShowsMonitor(CompactStyle style) => style switch { CompactStyle.Notch => NotchMonitor, CompactStyle.Capsule => CapsuleMonitor, _ => false };
     public bool ShowsDevices(CompactStyle style) => style switch { CompactStyle.Notch => NotchDevices, CompactStyle.Capsule => CapsuleDevices, _ => false };
+    // Cursor agent activity uses one switch for both styles (CursorAgentLive); the part only paints while a turn is active.
+    public bool ShowsAgent(CompactStyle style) => style is CompactStyle.Notch or CompactStyle.Capsule && CursorAgentLive;
     // The file transfer's count needs the page and its column: with either hidden, nothing can be dropped there.
     public bool ShowsTransfer(CompactStyle style) => ClipboardPage && ShelfShown != ShelfShown.Clipboard && style switch { CompactStyle.Notch => NotchTransfer, CompactStyle.Capsule => CapsuleTransfer, _ => false };
     // The page's columns are stacked as cards only while it shows both.
