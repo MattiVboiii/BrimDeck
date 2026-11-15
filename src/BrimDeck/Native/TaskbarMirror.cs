@@ -45,7 +45,8 @@ internal sealed class TaskbarMirror : IDisposable
     private readonly Func<IntPtr, Point, bool> _hit;
     private readonly Func<IntPtr, uint, Point, int, bool> _pointer;
     // The lenses' places follow the panel's window and the taskbar; their pictures follow on their own.
-    private readonly DispatcherTimer _frame = new() { Interval = TimeSpan.FromMilliseconds(33) };
+    // ~15 Hz is enough to follow the island and hover; 30 Hz was mostly idle Win32 work while a lens was up.
+    private readonly DispatcherTimer _frame = new() { Interval = TimeSpan.FromMilliseconds(66) };
     // The taskbar is lifted a moment after the flyout takes the foreground, so a foreground change is followed by a few
     // quick checks; the order watch alone looks only every 400 ms.
     private readonly DispatcherTimer _follow = new() { Interval = TimeSpan.FromMilliseconds(80) };
@@ -53,6 +54,11 @@ internal sealed class TaskbarMirror : IDisposable
     private readonly Lens _panelLens;
     private readonly Dictionary<IntPtr, Lens> _popupLenses = [];
     private bool _shown, _unavailable;
+    // Last island places Track already followed: LayoutUpdated fires often during animation, and Covered is Win32 work.
+    private Rect? _trackedStrip, _trackedReach;
+    // While no lens is up, Covered() is only probed this often; WinEvents / Follow still ask at once.
+    private long _lastProbeAt;
+    private const int ProbeIdleMs = 1000;
     // False once a band call is found missing or refused.
     public bool Available => !_unavailable;
 
@@ -70,6 +76,13 @@ internal sealed class TaskbarMirror : IDisposable
     public void Check()
     {
         if (_unavailable) return;
+        if (!_shown)
+        {
+            if (!_wanted()) return;
+            long now = Environment.TickCount64;
+            if (now - _lastProbeAt < ProbeIdleMs) return;
+            _lastProbeAt = now;
+        }
         if (_wanted() && Covered() is { } area) Show(area);
         else if (_shown) Hide();
     }
@@ -77,13 +90,22 @@ internal sealed class TaskbarMirror : IDisposable
     // Called after each layout of the panel: a shown lens follows the island as it opens, closes or is resized.
     public void Track()
     {
-        if (_shown) Check();
+        if (!_shown) return;
+        var strip = _strip();
+        var reach = _reach();
+        if (strip is { } s && reach is { } r && _trackedStrip is { } ts && _trackedReach is { } tr
+            && NearlySame(s, ts) && NearlySame(r, tr)) return;
+        _trackedStrip = strip; _trackedReach = reach;
+        Check();
     }
+    private static bool NearlySame(Rect a, Rect b) =>
+        Math.Abs(a.X - b.X) < .5 && Math.Abs(a.Y - b.Y) < .5 && Math.Abs(a.Width - b.Width) < .5 && Math.Abs(a.Height - b.Height) < .5;
 
     // Called when another window takes the foreground.
     public void Follow()
     {
         if (_unavailable || _shown) return;
+        _lastProbeAt = 0;
         _followTicks = 15;
         _follow.Start();
     }
@@ -138,6 +160,7 @@ internal sealed class TaskbarMirror : IDisposable
         Conceal(_panelLens);
         foreach (var lens in _popupLenses.Values) Conceal(lens);
         _popupLenses.Clear();
+        _trackedStrip = _trackedReach = null;
         _shown = false;
     }
 

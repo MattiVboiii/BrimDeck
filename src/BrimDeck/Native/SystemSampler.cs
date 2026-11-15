@@ -92,8 +92,11 @@ internal sealed class SystemSampler : IDisposable
     private Reading<IReadOnlyList<GpuSample>> _lastGpus = Reading<IReadOnlyList<GpuSample>>.Unavailable(Why.Waiting);
     private readonly Queue<(double Down, double Up)> _history = new(HistoryLength);
     private readonly Queue<double> _cpuHistory = new(HistoryLength);
+    // Published history arrays are double-buffered so the UI can keep the last snapshot while the next reading fills the other.
+    private readonly HistoryPublish _downPublish = new(), _upPublish = new(), _cpuPublish = new(), _powerPublish = new();
     // Each graphics adapter's usage, by LUID, so the page shows the history of whichever adapter it shows.
     private readonly Dictionary<ulong, Queue<double>> _gpuHistories = [];
+    private readonly Dictionary<ulong, HistoryPublish> _gpuPublish = [];
     // The saved choice of graphics adapter (DeckSettings.MonitorGpu and MonitorGpuName), and the adapter 自动 showed last, so that
     // it stays (GpuChoice.Auto). The LUID is written on the sampling thread and read on the UI thread by ShowGpuChoice.
     private readonly Func<(string? Key, string? Name)> _gpuChoice;
@@ -349,7 +352,7 @@ internal sealed class SystemSampler : IDisposable
     // The histories and the power statistics start over: what they hold came from readings over a window that is no more.
     private void ForgetWindowed()
     {
-        _history.Clear(); _cpuHistory.Clear(); _gpuHistories.Clear(); _powerHistory.Clear(); _powerStats.Reset(); _powerSource = null; _cpuPower.Clear(); _gpuPower.Clear();
+        _history.Clear(); _cpuHistory.Clear(); _gpuHistories.Clear(); _gpuPublish.Clear(); _powerHistory.Clear(); _powerStats.Reset(); _powerSource = null; _cpuPower.Clear(); _gpuPower.Clear();
     }
 
     // The counters just asked for, read once: the power meter's, and the adapters' when they have just joined their query. Whether
@@ -435,7 +438,7 @@ internal sealed class SystemSampler : IDisposable
         Remember(_cpuHistory, cpu.OrDefault?.Usage);
         // The usage each adapter's driver gives, where it gives one (GpuDrivers); the curves follow the figure shown.
         var adapters = gpus.TryGet(out var read) ? Remember(_drivers!.Read(read, now, temperatures, _gpuUsage)) : [];
-        if (!_gpuWanted) _gpuHistories.Clear();
+        if (!_gpuWanted) { _gpuHistories.Clear(); _gpuPublish.Clear(); }
         // The machine's power and battery: read only while something shows them; the history and the peak start over once none does.
         var power = Reading<PowerSample>.Unavailable(Why.Waiting);
         var battery = Reading<BatterySample>.Unavailable(Why.Waiting);
@@ -485,12 +488,13 @@ internal sealed class SystemSampler : IDisposable
         var frames = _frames.Sample(now);
         // The program's icon, read here as the process list's are (the shell's lookup wants this thread's apartment).
         if (frames.TryGet(out var drawing) && drawing.Path is { } program) ProcessIcons.Prepare(program);
+        var (downHistory, upHistory) = PublishTraffic();
         var snapshot = new MonitorSnapshot(DateTimeOffset.Now, Environment.ProcessorCount, cpu, _readMemory ? MemoryProvider.Sample() : Reading<MemorySample>.Unavailable(Why.Waiting), network,
             Reading<GpuSample>.Unavailable(gpus.Reason), _lastProcesses)
         {
-            DownHistory = _history.Select(reading => reading.Down).ToArray(), UpHistory = _history.Select(reading => reading.Up).ToArray(),
-            CpuHistory = _cpuHistory.ToArray(), Gpus = adapters, Storage = storage,
-            Power = power, Battery = battery, PowerHistory = _powerHistory.ToArray(),
+            DownHistory = downHistory, UpHistory = upHistory,
+            CpuHistory = _cpuPublish.Copy(_cpuHistory), Gpus = adapters, Storage = storage,
+            Power = power, Battery = battery, PowerHistory = _powerPublish.Copy(_powerHistory),
             PowerSummary = _powerStats.Summary(now),
             CpuPower = _cpuPower.Track(now), GpuPower = _gpuPower.Track(now),
             Frames = frames
@@ -505,10 +509,20 @@ internal sealed class SystemSampler : IDisposable
     private MonitorSnapshot WithTemperature(MonitorSnapshot snapshot, double now)
     {
         if (!snapshot.Gpu.TryGet(out var gpu)) return snapshot;
-        var working = snapshot.Gpus.Where(adapter => adapter.EngineUsage > 0).Select(adapter => GpuReadings.LuidText(adapter.Luid)).Order(StringComparer.OrdinalIgnoreCase).ToList();
-        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var adapter in snapshot.Gpus) names.TryAdd(GpuReadings.LuidText(adapter.Luid), adapter.Name ?? "GPU");
-        if (_gpuTemperatures!.ReadFor(GpuReadings.LuidText(gpu.Luid), working, names, now) is not { } heat)
+        List<string>? working = null;
+        Dictionary<string, string>? names = null;
+        foreach (var adapter in snapshot.Gpus)
+        {
+            if (adapter.EngineUsage > 0)
+            {
+                working ??= new List<string>(snapshot.Gpus.Count);
+                working.Add(GpuReadings.LuidText(adapter.Luid));
+            }
+            (names ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase))
+                .TryAdd(GpuReadings.LuidText(adapter.Luid), adapter.Name ?? "GPU");
+        }
+        if (working is { Count: > 1 }) working.Sort(StringComparer.OrdinalIgnoreCase);
+        if (_gpuTemperatures!.ReadFor(GpuReadings.LuidText(gpu.Luid), working ?? (IReadOnlyList<string>)[], names ?? EmptyGpuNames, now) is not { } heat)
         {
             // The graphics kernel gives none: the temperature the adapter's own driver gave with its usage (GpuDrivers).
             if (gpu.DriverTemperature is not { } own) return snapshot;
@@ -533,12 +547,23 @@ internal sealed class SystemSampler : IDisposable
         foreach (var gpu in gpus)
         {
             if (!_gpuHistories.TryGetValue(gpu.Luid, out var history)) _gpuHistories[gpu.Luid] = history = new Queue<double>(HistoryLength);
+            if (!_gpuPublish.TryGetValue(gpu.Luid, out var publish)) _gpuPublish[gpu.Luid] = publish = new HistoryPublish();
             Remember(history, gpu.Usage);
-            adapters.Add(gpu with { History = history.ToArray() });
+            adapters.Add(gpu with { History = publish.Copy(history) });
         }
         if (_gpuHistories.Count > adapters.Count)
-            foreach (var luid in _gpuHistories.Keys.ToList()) if (!adapters.Exists(gpu => gpu.Luid == luid)) _gpuHistories.Remove(luid);
+            foreach (var luid in _gpuHistories.Keys.ToList())
+                if (!adapters.Exists(gpu => gpu.Luid == luid)) { _gpuHistories.Remove(luid); _gpuPublish.Remove(luid); }
         return adapters;
+    }
+    private (IReadOnlyList<double> Down, IReadOnlyList<double> Up) PublishTraffic()
+    {
+        int n = _history.Count;
+        var down = _downPublish.Buffer(n);
+        var up = _upPublish.Buffer(n);
+        int i = 0;
+        foreach (var reading in _history) { down[i] = reading.Down; up[i] = reading.Up; i++; }
+        return (_downPublish.View(n), _upPublish.View(n));
     }
     // The snapshot showing the chosen graphics adapter, or why no adapter can be shown.
     // automatic: 自动 chose it, as asked or because the chosen adapter is not there.
@@ -565,6 +590,35 @@ internal sealed class SystemSampler : IDisposable
         if (usage is not { } value) return;
         if (history.Count == HistoryLength) history.Dequeue();
         history.Enqueue(Math.Clamp(value, 0, 1));
+    }
+
+    private static readonly Dictionary<string, string> EmptyGpuNames = new(StringComparer.OrdinalIgnoreCase);
+
+    // Two fixed buffers alternate as the published history so the UI keeps the previous snapshot's array while the next reading
+    // fills the other; no per-tick allocation once the length is steady.
+    private sealed class HistoryPublish
+    {
+        private double[] _a = new double[HistoryLength], _b = new double[HistoryLength];
+        private bool _flip;
+        public double[] Buffer(int count)
+        {
+            var dest = _flip ? _a : _b;
+            if (dest.Length < count) dest = _flip ? _a = new double[count] : _b = new double[count];
+            return dest;
+        }
+        public IReadOnlyList<double> View(int count)
+        {
+            var dest = _flip ? _a : _b;
+            _flip = !_flip;
+            return count == 0 ? Array.Empty<double>() : new ArraySegment<double>(dest, 0, count);
+        }
+        public IReadOnlyList<double> Copy(Queue<double> source)
+        {
+            int n = source.Count;
+            var dest = Buffer(n);
+            if (n > 0) source.CopyTo(dest, 0);
+            return View(n);
+        }
     }
 
     public void Dispose()

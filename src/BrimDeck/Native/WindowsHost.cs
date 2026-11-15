@@ -10,7 +10,10 @@ namespace BrimDeck.Native;
 
 public sealed class WindowsHost : IDisposable
 {
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(400) };
+    // Busy while the foreground is changing; quieter once it has been still for a few polls (WinEvents still force a check).
+    private static readonly TimeSpan BusyPoll = TimeSpan.FromMilliseconds(400), QuietPoll = TimeSpan.FromMilliseconds(1500);
+    private readonly DispatcherTimer _timer = new() { Interval = BusyPoll };
+    private int _quietPolls;
     private readonly Func<IntPtr> _monitor;
     // The foreground window's app, as the detection reads it: the empty pair on the desktop.
     private string _appName = "", _appPath = "";
@@ -83,7 +86,9 @@ public sealed class WindowsHost : IDisposable
         _orderCheckPending = true;
         _timer.Dispatcher.BeginInvoke(() =>
         {
-            _orderCheckPending = false; WatchOrder(_window());
+            _orderCheckPending = false;
+            _quietPolls = 0; _timer.Interval = BusyPoll;
+            WatchOrder(_window());
             if (_foregroundPending) { _foregroundPending = false; ForegroundSwitched?.Invoke(); }
         });
     }
@@ -116,7 +121,14 @@ public sealed class WindowsHost : IDisposable
     {
         var context = DetectNow();
         var change = ScreenPolicy.WhatChanged(context, _resolvedName, _resolvedPath, Current, _raisedName, _raisedPath);
-        if (change == ScreenPolicy.ForegroundChange.None) { WatchOrder(_window()); return; }
+        if (change == ScreenPolicy.ForegroundChange.None)
+        {
+            WatchOrder(_window());
+            if (++_quietPolls >= 3 && _timer.Interval != QuietPoll) _timer.Interval = QuietPoll;
+            return;
+        }
+        _quietPolls = 0;
+        if (_timer.Interval != BusyPoll) _timer.Interval = BusyPoll;
         var previous = (_raisedName, _raisedPath, _raisedKind);
         Current = context; _raisedName = _resolvedName; _raisedPath = _resolvedPath; _raisedKind = _backgroundKind;
         if (change == ScreenPolicy.ForegroundChange.Context) ContextChanged?.Invoke(context);

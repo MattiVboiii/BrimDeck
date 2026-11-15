@@ -163,6 +163,8 @@ internal sealed class MonitorStrip : FrameworkElement
     {
         private Eased _value;
         private bool _has;
+        public readonly bool Has => _has;
+        public readonly double Target => _value.Target;
         public bool Set(double? target, bool motion, double now)
         {
             if (target is not { } value) { _has = false; return false; }
@@ -225,23 +227,110 @@ internal sealed class MonitorStrip : FrameworkElement
     // frames: the frames a second the dials and the core columns are drawn at while they ease (CompactSmoothing).
     public void Update(MonitorSnapshot? snapshot, bool motion, int frames)
     {
+        bool steadyDirty = SteadyDirty(snapshot);
         _snapshot = snapshot;
         _easing.Interval = TimeSpan.FromMilliseconds(1000.0 / Math.Max(1, frames));
         var s = snapshot;
         double now = Eased.Now;
-        bool moving = false;
+        bool moving = false, snapped = false;
         var cpu = s?.Cpu.OrDefault;
         if ((Shown & CompactMonitorItems.Columns) != 0)
         {
             int count = cpu?.Cores.Count ?? 0;
-            if (count != _cores.Length) _cores = new Smooth[count];
-            for (int i = 0; i < count; i++) moving |= _cores[i].Set(cpu!.Cores[i].Usage, motion, now);
+            if (count != _cores.Length) { _cores = new Smooth[count]; snapped = true; }
+            for (int i = 0; i < count; i++) Apply(ref _cores[i], cpu!.Cores[i].Usage, motion, now, ref moving, ref snapped);
         }
-        if ((Shown & CompactMonitorItems.Cpu) != 0) moving |= _cpu.Set(cpu?.Usage, motion, now);
-        if ((Shown & CompactMonitorItems.Memory) != 0) moving |= _memory.Set(s?.Memory.OrDefault?.UsedFraction, motion, now);
-        if ((Shown & CompactMonitorItems.Gpu) != 0) moving |= _gpu.Set(s?.Gpu.OrDefault is { NoReadings: false } gpu ? gpu.Usage : null, motion, now);
+        if ((Shown & CompactMonitorItems.Cpu) != 0) Apply(ref _cpu, cpu?.Usage, motion, now, ref moving, ref snapped);
+        if ((Shown & CompactMonitorItems.Memory) != 0) Apply(ref _memory, s?.Memory.OrDefault?.UsedFraction, motion, now, ref moving, ref snapped);
+        if ((Shown & CompactMonitorItems.Gpu) != 0) Apply(ref _gpu, s?.Gpu.OrDefault is { NoReadings: false } gpu ? gpu.Usage : null, motion, now, ref moving, ref snapped);
         if (moving && !_easing.IsEnabled) _easing.Start();
-        InvalidateVisual();
+        // Dials and columns that ease redraw on the easing timer; skip a full strip redraw when nothing visible changed.
+        if (steadyDirty || snapped || !_layered) InvalidateVisual();
+        else if (moving) DrawMoving(now);
+    }
+    private static void Apply(ref Smooth smooth, double? target, bool motion, double now, ref bool moving, ref bool snapped)
+    {
+        bool had = smooth.Has;
+        double? before = had ? smooth.Target : null;
+        bool moved = smooth.Set(target, motion, now);
+        moving |= moved;
+        if (moved) return;
+        if (had != smooth.Has) { snapped = true; return; }
+        if (before is { } from && target is { } to && Math.Abs(from - to) >= 1e-6) snapped = true;
+        else if (before is null != target is null) snapped = true;
+    }
+    // Whether the row's steady layer (figures, rates, glyphs) would draw differently for the new reading.
+    private bool SteadyDirty(MonitorSnapshot? next)
+    {
+        var a = _snapshot; var b = next;
+        if (ReferenceEquals(a, b)) return false;
+        if (a is null || b is null) return true;
+        if ((Shown & CompactMonitorItems.Cpu) != 0 && RingDirty(CompactMonitorItems.Cpu, a, b)) return true;
+        if ((Shown & CompactMonitorItems.Memory) != 0 && RingDirty(CompactMonitorItems.Memory, a, b)) return true;
+        if ((Shown & CompactMonitorItems.Gpu) != 0 && RingDirty(CompactMonitorItems.Gpu, a, b)) return true;
+        if ((Shown & CompactMonitorItems.Download) != 0
+            && (RateFigure(a.Network.OrDefault?.DownBytesPerSecond) != RateFigure(b.Network.OrDefault?.DownBytesPerSecond)
+                || ReadingLevels.Of(CompactMonitorItems.Download, a) != ReadingLevels.Of(CompactMonitorItems.Download, b))) return true;
+        if ((Shown & CompactMonitorItems.Upload) != 0
+            && (RateFigure(a.Network.OrDefault?.UpBytesPerSecond) != RateFigure(b.Network.OrDefault?.UpBytesPerSecond)
+                || ReadingLevels.Of(CompactMonitorItems.Upload, a) != ReadingLevels.Of(CompactMonitorItems.Upload, b))) return true;
+        if ((Shown & CompactMonitorItems.DownloadTotal) != 0 && TotalFigure(CompactTraffic.Of(CompactMonitorItems.DownloadTotal, a)) != TotalFigure(CompactTraffic.Of(CompactMonitorItems.DownloadTotal, b))) return true;
+        if ((Shown & CompactMonitorItems.UploadTotal) != 0 && TotalFigure(CompactTraffic.Of(CompactMonitorItems.UploadTotal, a)) != TotalFigure(CompactTraffic.Of(CompactMonitorItems.UploadTotal, b))) return true;
+        if ((Shown & CompactMonitorItems.Storage) != 0 && StorageDirty(a, b)) return true;
+        if ((Shown & CompactMonitorItems.Power) != 0 && PowerDirty(a.Power.OrDefault, b.Power.OrDefault)) return true;
+        if ((Shown & CompactMonitorItems.Charge) != 0 && ChargeDirty(a.Battery.OrDefault, b.Battery.OrDefault)) return true;
+        if ((Shown & CompactMonitorItems.Frames) != 0 && FramesDirty(a, b)) return true;
+        return false;
+    }
+    private bool RingDirty(CompactMonitorItems item, MonitorSnapshot a, MonitorSnapshot b)
+    {
+        if (ReadingLevels.Of(item, a) != ReadingLevels.Of(item, b)) return true;
+        if ((_usage & item) != 0 && GaugeFigure(RingShare(item, a)) != GaugeFigure(RingShare(item, b))) return true;
+        if ((_heat & item) != 0 && TemperatureFigure(CompactFigures.Heat(item, a)?.Celsius) != TemperatureFigure(CompactFigures.Heat(item, b)?.Celsius)) return true;
+        if ((_vram & item) != 0 && GaugeFigure(CompactFigures.Memory(item, a)?.Share) != GaugeFigure(CompactFigures.Memory(item, b)?.Share)) return true;
+        return false;
+    }
+    private static double? RingShare(CompactMonitorItems item, MonitorSnapshot s) => item switch
+    {
+        CompactMonitorItems.Cpu => s.Cpu.OrDefault?.Usage,
+        CompactMonitorItems.Memory => s.Memory.OrDefault?.UsedFraction,
+        CompactMonitorItems.Gpu => s.Gpu.OrDefault is { NoReadings: false } gpu ? gpu.Usage : null,
+        _ => null
+    };
+    private bool StorageDirty(MonitorSnapshot a, MonitorSnapshot b)
+    {
+        for (int i = 0; i < _letters.Length; i++)
+        {
+            if (_letterUsage[i])
+            {
+                var sa = CompactSources.Share(_letters[i], a); var sb = CompactSources.Share(_letters[i], b);
+                if (GaugeFigure(sa?.Share) != GaugeFigure(sb?.Share) || sa?.Level != sb?.Level) return true;
+            }
+            if (_letterHeat[i] && TemperatureFigure(CompactSources.Heat(_letters[i], a)?.Celsius) != TemperatureFigure(CompactSources.Heat(_letters[i], b)?.Celsius)) return true;
+        }
+        return false;
+    }
+    private static bool FramesDirty(MonitorSnapshot a, MonitorSnapshot b)
+    {
+        var fa = a.Frames.OrDefault; var fb = b.Frames.OrDefault;
+        if (fa is null && fb is null) return false;
+        if (fa is null || fb is null) return true;
+        return fa.Program != fb.Program || fa.Path != fb.Path
+            || (int)Math.Round(fa.PerSecond) != (int)Math.Round(fb.PerSecond);
+    }
+    private static bool PowerDirty(PowerSample? a, PowerSample? b)
+    {
+        if (a is null && b is null) return false;
+        if (a is null || b is null) return true;
+        return a.Source != b.Source || (int)Math.Round(a.Watts) != (int)Math.Round(b.Watts);
+    }
+    private static bool ChargeDirty(BatterySample? a, BatterySample? b)
+    {
+        if (a is null && b is null) return false;
+        if (a is null || b is null) return true;
+        return a.State != b.State || a.Count != b.Count || a.AcOnline != b.AcOnline
+            || MonitorFormat.WholePercent(a.Percent / 100d) != MonitorFormat.WholePercent(b.Percent / 100d)
+            || BatteryModel.Level(a, BatteryModel.LowPercent) != BatteryModel.Level(b, BatteryModel.LowPercent);
     }
     private bool ValuesMoving(double now)
     {

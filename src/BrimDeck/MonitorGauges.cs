@@ -316,24 +316,47 @@ internal sealed class ColumnGraph : FrameworkElement
 
     public void Set(IReadOnlyList<GraphColumn> columns, bool motion)
     {
-        bool same = columns.Count == _columns.Count && columns.Select(c => c.Group).SequenceEqual(_columns.Select(c => c.Group));
+        bool same = columns.Count == _columns.Count;
+        if (same) for (int i = 0; i < columns.Count; i++) if (columns[i].Group != _columns[i].Group) { same = false; break; }
         if (!same) { _values = new Eased[columns.Count]; _ticks = new Eased[columns.Count]; _hasTick = new bool[columns.Count]; motion = false; }
-        if (!same || _labels && Enumerable.Range(0, columns.Count).Any(i => columns[i].Label != _columns[i].Label || columns[i].Sub != _columns[i].Sub)) _labelsVersion++;
-        bool moving = false;
+        bool labelsChanged = !same;
+        if (!labelsChanged && _labels)
+            for (int i = 0; i < columns.Count; i++)
+                if (columns[i].Label != _columns[i].Label || columns[i].Sub != _columns[i].Sub) { labelsChanged = true; break; }
+        if (labelsChanged) _labelsVersion++;
+        bool moving = false, dirty = !same || labelsChanged;
         for (int i = 0; i < columns.Count; i++)
         {
-            moving |= _values[i].Set(columns[i].Value, motion);
+            double before = same ? _values[i].Target : double.NaN;
+            bool moved = _values[i].Set(columns[i].Value, motion);
+            moving |= moved;
+            if (!moved && !(same && Math.Abs(before - columns[i].Value) < 1e-6)) dirty = true;
             bool tick = columns[i].Tick is not null;
-            if (tick) moving |= _ticks[i].Set(columns[i].Tick!.Value, motion && _hasTick[i]);
+            if (tick != _hasTick[i]) dirty = true;
+            if (tick)
+            {
+                double tickBefore = same && _hasTick[i] ? _ticks[i].Target : double.NaN;
+                bool tickMoved = _ticks[i].Set(columns[i].Tick!.Value, motion && _hasTick[i]);
+                moving |= tickMoved;
+                if (!tickMoved && !(same && _hasTick[i] && Math.Abs(tickBefore - columns[i].Tick!.Value) < 1e-6)) dirty = true;
+            }
+            if (same && (columns[i].Color != _columns[i].Color || columns[i].Hot != _columns[i].Hot)) dirty = true;
             _hasTick[i] = tick;
         }
         _columns = columns;
         if (_tipIndex >= 0 && _tipIndex < columns.Count && _tip.IsOpen) _tip.Content = columns[_tipIndex].Tip;
-        if (moving) Motion.Start(this, Step); else InvalidateVisual();
+        if (moving) Motion.Start(this, Step);
+        else if (dirty) InvalidateVisual();
         // Once per reading, not per frame: the columns a screen reader lists are these.
         DrawnPeer.Refresh(this);
     }
-    private bool Step(double now) { InvalidateVisual(); return _values.Any(v => v.Moving(now)) || _ticks.Any(t => t.Moving(now)); }
+    private bool Step(double now)
+    {
+        InvalidateVisual();
+        for (int i = 0; i < _values.Length; i++) if (_values[i].Moving(now)) return true;
+        for (int i = 0; i < _ticks.Length; i++) if (_hasTick[i] && _ticks[i].Moving(now)) return true;
+        return false;
+    }
 
     protected override Size MeasureOverride(Size availableSize) => new(0, 0);
 
@@ -421,8 +444,7 @@ internal sealed class ColumnGraph : FrameworkElement
         if (xs.Length == 0 || h <= 4) return;
         double radius = Math.Min(column / 2, 5);
         drawing.DrawDrawing(_fixed.Get((_labelsVersion, w, ActualHeight, ppd), context => Fixed(context, xs, column, h, radius, ppd)));
-        var tick = new Pen(UI.Brush(Look.Current["textPrimary"].WithAlpha(0xB3).ToString()), Math.Max(1, Math.Min(1.6, column / 6)));
-        tick.Freeze();
+        var tick = TickPen(Look.Current["textPrimary"].WithAlpha(0xB3).ToString(), Math.Max(1, Math.Min(1.6, column / 6)));
         for (int i = 0; i < xs.Length; i++)
         {
             var c = _columns[i];
@@ -434,6 +456,14 @@ internal sealed class ColumnGraph : FrameworkElement
                 drawing.DrawLine(tick, new Point(xs[i] + inset, y), new Point(xs[i] + column - inset, y));
             }
         }
+    }
+    private static readonly Dictionary<(string Color, double Thickness), Pen> TickPens = [];
+    private static Pen TickPen(string color, double thickness)
+    {
+        if (TickPens.TryGetValue((color, thickness), out var pen)) return pen;
+        pen = new Pen(UI.Brush(color), thickness); pen.Freeze();
+        if (TickPens.Count > 32) TickPens.Clear();
+        return TickPens[(color, thickness)] = pen;
     }
 
     // The dot matrix: the empty cells (kept, drawn again only when the count, the size or the scale change), then each core's cell in
@@ -708,7 +738,12 @@ internal sealed class NetworkBlock : FrameworkElement
 
     public void Set(Reading<NetworkSample> reading, IReadOnlyList<double> down, IReadOnlyList<double> up)
     {
-        _rates = reading.OrDefault; _reason = reading.HasValue ? "" : reading.Reason; _down = down; _up = up;
+        var rates = reading.OrDefault;
+        string reason = reading.HasValue ? "" : reading.Reason;
+        bool sameRates = Equals(rates, _rates) && reason == _reason;
+        bool sameHistory = SameHistory(_down, down) && SameHistory(_up, up);
+        if (sameRates && sameHistory) return;
+        _rates = rates; _reason = reason; _down = down; _up = up;
         // The traffic over the period chosen after each rate: "下载 1.2 MB/s，当天 2.31 GB".
         string Total(double? bytes) => bytes is { } moved ? Loc.T("，", ", ") + TrafficPeriods.Name(_rates!.TotalPeriod) + " " + MonitorFormat.Total(moved).Text : "";
         string? downText = _rates is { } d && _download ? Loc.T("下载 ", "Download ") + MonitorFormat.Rate(d.DownBytesPerSecond).Text + Total(d.DownTotalBytes) : null;
@@ -716,6 +751,14 @@ internal sealed class NetworkBlock : FrameworkElement
         ToolTip = _rates is not null ? string.Join(" · ", (_uploadFirst ? new[] { upText, downText } : [downText, upText]).OfType<string>())
             : Loc.T("暂无读数：", "No reading: ") + _reason;
         InvalidateVisual();
+    }
+    private static bool SameHistory(IReadOnlyList<double> a, IReadOnlyList<double> b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        int n = a.Count;
+        if (n != b.Count) return false;
+        if (n == 0) return true;
+        return a[n - 1] == b[n - 1] && (n < 2 || a[n - 2] == b[n - 2]) && a[0] == b[0];
     }
 
     protected override Size MeasureOverride(Size availableSize) => new(0, Height);

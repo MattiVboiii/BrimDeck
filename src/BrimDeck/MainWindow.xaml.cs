@@ -322,13 +322,16 @@ public partial class MainWindow : Window
     internal void Retire() { _retiring = true; SetExpanded(false, true); Close(); }
     private void ScheduleClock() => _clock.Interval = ClockDelay(DateTime.Now);
     // The rings take the off-peak color, so the collapsed island is drawn again when an application enters or leaves an off-peak period.
-    private string _offPeakState = "";
+    private int _offPeakStamp;
     private bool OffPeakChanged()
     {
         var now = DateTime.Now;
-        string state = string.Concat(Settings.EnabledApps.Select(app => app.IsOffPeak(now) ? '1' : '0'));
-        if (state == _offPeakState) return false;
-        _offPeakState = state;
+        var apps = Settings.EnabledApps;
+        int stamp = apps.Count;
+        for (int i = 0; i < apps.Count; i++)
+            stamp = unchecked(stamp * 397) ^ (apps[i].IsOffPeak(now) ? (1 << (i % 30)) : 0);
+        if (stamp == _offPeakStamp) return false;
+        _offPeakStamp = stamp;
         return true;
     }
     internal static TimeSpan ClockDelay(DateTime now) => TimeSpan.FromMilliseconds(60_000 - now.Second * 1000 - now.Millisecond + 50);

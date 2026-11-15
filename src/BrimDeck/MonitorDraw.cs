@@ -163,7 +163,7 @@ internal static class MonitorDraw
     // grows past a handful of entries, as when a dial moves across the row.
     private static readonly Dictionary<(string Letter, double Size, double Ppd, string Color), (Geometry Glyph, Rect Bounds, Pen Weight)> Letters = [];
     private static readonly Dictionary<(Point Center, double Radius, double Thickness), Geometry> Tracks = [];
-    private static readonly Dictionary<(string Color, double Thickness), Pen> ArcPens = [], ArrowPens = [];
+    private static readonly Dictionary<(string Color, double Thickness), Pen> ArcPens = [], ArrowPens = [], SparkPens = [];
     private static readonly Dictionary<Matrix, Transform> Places = [];
 
     private static Pen Stroke(Dictionary<(string Color, double Thickness), Pen> pens, string color, double thickness, PenLineJoin join)
@@ -218,9 +218,7 @@ internal static class MonitorDraw
         using (var context = under.Open()) Curve(context, points, true, area.Bottom);
         line.Freeze(); under.Freeze();
         if (fill > 0) drawing.DrawGeometry(UI.Brush(Faint(color, fill)), null, under);
-        var pen = new Pen(UI.Brush(color), stroke) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
-        pen.Freeze();
-        drawing.DrawGeometry(null, pen, line);
+        drawing.DrawGeometry(null, Stroke(SparkPens, color, stroke, PenLineJoin.Round), line);
     }
 
     // Catmull-Rom through the points, as cubic Béziers; closed down to the bottom for the fill.

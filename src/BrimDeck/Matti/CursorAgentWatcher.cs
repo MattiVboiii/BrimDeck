@@ -27,9 +27,11 @@ public sealed class CursorAgentWatcher : IDisposable
         _settings = settings;
         _locations = locations ?? DataLocations.Detect;
         _desktop = desktop ?? new DesktopSources();
-        _timer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromSeconds(2.5) };
+        // Active agents need a short poll; idle Cursor only needs a slower watchdog.
+        _timer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromSeconds(5) };
         _timer.Tick += OnTick;
     }
+    private static readonly TimeSpan ActivePoll = TimeSpan.FromSeconds(2.5), IdlePoll = TimeSpan.FromSeconds(5);
 
     private void OnTick(object? sender, EventArgs e) => _ = PollAsync();
 
@@ -71,6 +73,7 @@ public sealed class CursorAgentWatcher : IDisposable
             if (snap.Active)
             {
                 lock (_gate) { _lastActiveAt = now; _lastActive = snap; }
+                if (_timer.Interval != ActivePoll) _timer.Interval = ActivePoll;
                 Publish(snap);
                 return;
             }
@@ -78,9 +81,15 @@ public sealed class CursorAgentWatcher : IDisposable
             CursorAgentSnapshot kept;
             lock (_gate) { graceFrom = _lastActiveAt; kept = _lastActive; }
             if (graceFrom is { } at && now - at < CursorAgentActivity.Grace)
+            {
+                if (_timer.Interval != ActivePoll) _timer.Interval = ActivePoll;
                 Publish(kept with { CheckedAt = now });
+            }
             else
+            {
+                if (_timer.Interval != IdlePoll) _timer.Interval = IdlePoll;
                 Publish(snap);
+            }
         }
         finally { _busy = false; }
     }

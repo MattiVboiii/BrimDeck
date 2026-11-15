@@ -79,7 +79,8 @@ public sealed record MemoryPlan
     {
         TrimWhenIdle = true, TrimAfter = TimeSpan.FromMinutes(3), TrimEvery = TimeSpan.FromMinutes(5), ReleaseAfter = TimeSpan.FromMinutes(2),
         ReadingsLinger = TimeSpan.FromSeconds(10), LingerExtras = true, KeepCaches = false, MediaLinger = TimeSpan.FromSeconds(5), RecentCovers = 16,
-        PointerFarMilliseconds = 160, QuietWhileOpen = false, WarmAtStart = false
+        // CollapsedSeconds: the notch's readings need not match the open page's 1 s pace; 2 s halves sampler work while idle.
+        PointerFarMilliseconds = 250, QuietWhileOpen = false, WarmAtStart = false, CollapsedSeconds = 2
     };
     public static readonly MemoryPlan Smooth = new()
     {

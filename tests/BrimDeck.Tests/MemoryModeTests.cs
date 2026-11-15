@@ -50,15 +50,16 @@ internal static class MemoryModeTests
             balanced.TrimDue(used.AddMinutes(13), used.AddMinutes(4)) == used.AddMinutes(13) + balanced.TrimAfter);
         check("Memory modes: the smooth mode still stops the readings after a while",
             fluent.ReadingsLinger <= TimeSpan.FromMinutes(1));
-        check("Memory modes: the saver mode reads the collapsed row every 2 seconds, an open page at the chosen interval",
+        check("Memory modes: the saver and balanced modes read the collapsed row every 2 seconds, an open page at the chosen interval",
             saver.ReadingSeconds(1, pageOpen: false) == 2 && saver.ReadingSeconds(2, pageOpen: false) == 2 && saver.ReadingSeconds(1, pageOpen: true) == 1
-            && balanced.ReadingSeconds(1, pageOpen: false) == 1 && fluent.ReadingSeconds(1, pageOpen: false) == 1);
+            && balanced.ReadingSeconds(1, pageOpen: false) == 2 && balanced.ReadingSeconds(1, pageOpen: true) == 1
+            && fluent.ReadingSeconds(1, pageOpen: false) == 1);
         check("Memory modes: the more a mode keeps, the longer the bars' capture runs on and the more covers it keeps",
             saver.MediaLinger == TimeSpan.Zero && saver.MediaLinger < balanced.MediaLinger && balanced.MediaLinger < fluent.MediaLinger
             && saver.RecentCovers < balanced.RecentCovers && balanced.RecentCovers < fluent.RecentCovers);
         check("Memory modes: the saver mode lets the monitor page's extras go when it closes and checks a far pointer less often",
             !saver.LingerExtras && balanced.LingerExtras && fluent.LingerExtras
-            && saver.PointerFarMilliseconds > balanced.PointerFarMilliseconds && balanced.PointerFarMilliseconds == fluent.PointerFarMilliseconds);
+            && saver.PointerFarMilliseconds > balanced.PointerFarMilliseconds && balanced.PointerFarMilliseconds > fluent.PointerFarMilliseconds);
         check("Memory modes: only the smooth mode keeps caches, warms up at start and holds off full collections while open",
             fluent.KeepCaches && fluent.WarmAtStart && fluent.QuietWhileOpen && !balanced.KeepCaches && !balanced.WarmAtStart && !balanced.QuietWhileOpen
             && !saver.KeepCaches && !saver.WarmAtStart && !saver.QuietWhileOpen);
