@@ -19,17 +19,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          git remote add upstream https://github.com/MoFeng2223/BrimDeck.git 2>/dev/null || git remote set-url upstream https://github.com/MoFeng2223/BrimDeck.git
-          git fetch upstream main
-          git checkout main
-          git merge --ff-only upstream/main
-          git push origin main
+          gh api "repos/${GITHUB_REPOSITORY}/merge-upstream" -f branch=main
       - name: Ensure a single open PR from main into matti
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          git fetch origin matti
+          git fetch origin main matti
           behind="$(git rev-list --count origin/matti..origin/main)"
           if [ "$behind" -eq 0 ]; then
             echo "matti already includes main."
