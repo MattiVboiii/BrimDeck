@@ -30,8 +30,26 @@
   #define MainExe "BrimDeck.exe"
 #endif
 ; Settings, secrets and caches. Installing and updating never touch this folder; uninstalling deletes it on request.
+#ifndef DataDirSubfolder
+  #define DataDirSubfolder "BrimDeck"
+#endif
 #ifndef DataDir
-  #define DataDir "{localappdata}\BrimDeck"
+  #define DataDir "{localappdata}\{#DataDirSubfolder}"
+#endif
+#ifndef AppPublisher
+  #define AppPublisher "MoFeng2223"
+#endif
+#ifndef AppPublisherURL
+  #define AppPublisherURL "https://github.com/MoFeng2223/BrimDeck"
+#endif
+#ifndef AppSupportURL
+  #define AppSupportURL "https://github.com/MoFeng2223/BrimDeck/issues"
+#endif
+#ifndef AppUpdatesURL
+  #define AppUpdatesURL "https://github.com/MoFeng2223/BrimDeck/releases"
+#endif
+#ifndef AppCopyright
+  #define AppCopyright "Copyright (C) MoFeng2223"
 #endif
 ; The app holds Local\BrimDeck.Instance.<user name> while it runs (App.OnStartup).
 #ifndef MutexPrefix
@@ -57,11 +75,11 @@ AppId={{{#AppId}}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
-AppPublisher=MoFeng2223
-AppPublisherURL=https://github.com/MoFeng2223/BrimDeck
-AppSupportURL=https://github.com/MoFeng2223/BrimDeck/issues
-AppUpdatesURL=https://github.com/MoFeng2223/BrimDeck/releases
-AppCopyright=Copyright (C) MoFeng2223
+AppPublisher={#AppPublisher}
+AppPublisherURL={#AppPublisherURL}
+AppSupportURL={#AppSupportURL}
+AppUpdatesURL={#AppUpdatesURL}
+AppCopyright={#AppCopyright}
 VersionInfoVersion={#FileVersion}
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#MainExe}

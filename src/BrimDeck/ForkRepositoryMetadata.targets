@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <BrimDeckRepositoryUrl Condition="'$(BrimDeckRepositoryUrl)' == ''">https://github.com/MoFeng2223/BrimDeck</BrimDeckRepositoryUrl>
+    <BrimDeckInstallerAppId Condition="'$(BrimDeckInstallerAppId)' == ''">{9D9AD6ED-CF62-4527-A587-6DBE94A74B9E}</BrimDeckInstallerAppId>
+    <BrimDeckAppPublisher Condition="'$(BrimDeckAppPublisher)' == ''">MoFeng2223</BrimDeckAppPublisher>
+    <BrimDeckDataDirSubfolder Condition="'$(BrimDeckDataDirSubfolder)' == ''">BrimDeck</BrimDeckDataDirSubfolder>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="BrimDeckRepositoryUrl" Value="$(BrimDeckRepositoryUrl)" />
+    <AssemblyMetadata Include="BrimDeckInstallerAppId" Value="$(BrimDeckInstallerAppId)" />
+  </ItemGroup>
+</Project>

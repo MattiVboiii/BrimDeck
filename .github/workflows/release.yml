@@ -13,6 +13,7 @@ concurrency:
 jobs:
   # Runs before the approval, so a tag with a wrong name or on the wrong branch fails without asking for it.
   check:
+    if: github.repository_owner == 'MoFeng2223'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.tag.outputs.version }}
@@ -37,6 +38,7 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "prerelease=$("$prerelease".ToLowerInvariant())" >> $env:GITHUB_OUTPUT
   release:
+    if: github.repository_owner == 'MoFeng2223'
     needs: check
     runs-on: windows-latest
     # The release environment requires the maintainer's approval, so a mistakenly pushed tag runs nothing

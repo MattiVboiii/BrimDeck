@@ -1,0 +1,13 @@
+<Project>
+  <!-- Fork-only MSBuild overrides (not present on upstream `main`). Defaults stay in src/BrimDeck/ForkRepositoryMetadata.targets. -->
+  <PropertyGroup>
+    <BrimDeckRepositoryUrl>https://github.com/MattiVboiii/BrimDeck</BrimDeckRepositoryUrl>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- Must match the AppId passed to installer/BrimDeck.iss when publishing this fork. -->
+    <BrimDeckInstallerAppId>{7F4E8B2A-3C91-4D5E-A6F7-8B9C0D1E2F3A}</BrimDeckInstallerAppId>
+    <BrimDeckAppPublisher>MattiVboiii</BrimDeckAppPublisher>
+    <!-- Separate user data from an upstream BrimDeck install on the same machine. -->
+    <BrimDeckDataDirSubfolder>BrimDeck-Matti</BrimDeckDataDirSubfolder>
+  </PropertyGroup>
+</Project>
