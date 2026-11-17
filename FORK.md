@@ -4,11 +4,11 @@ This repository is a personal fork of [MoFeng2223/BrimDeck](https://github.com/M
 
 ## Branch layout
 
-| Branch | Role |
-|--------|------|
-| `main` | Fast-forward mirror of upstream `main`. Do not land fork-only commits here. |
-| `matti` | Integration branch for this fork. Merge `main` into `matti` when upstream moves. |
-| `feat/*`, `fix/*` | Short-lived work branches. Open pull requests into `matti`, not into `main`. |
+| Branch            | Role                                                                             |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `main`            | Fast-forward mirror of upstream `main`. Do not land fork-only commits here.      |
+| `matti`           | Integration branch for this fork. Merge `main` into `matti` when upstream moves. |
+| `feat/*`, `fix/*` | Short-lived work branches. Open pull requests into `matti`, not into `main`.     |
 
 The scheduled `upstream-sync` workflow updates `main` from upstream and opens or refreshes a single PR `main` → `matti` when `matti` is behind. It never auto-merges.
 
@@ -40,18 +40,20 @@ Publishing (`scripts/Publish-Release.ps1`) passes the same values into `installe
 
 Keep this list short when you add more fork behavior:
 
-| File | Why |
-|------|-----|
-| `src/BrimDeck/Updates/GitHubUpdates.cs` | Read repository URL and installer AppId from assembly metadata. |
-| `src/BrimDeck/BrimDeck.csproj` | Import `ForkRepositoryMetadata.targets`. |
-| `installer/BrimDeck.iss` | Optional Inno defines for AppId, publisher URLs, and data folder (upstream defaults unchanged). |
-| `scripts/Publish-Release.ps1` | Pass fork MSBuild properties into the installer build. |
-| `.github/workflows/release.yml` | Guard release publishing so only `MoFeng2223/BrimDeck` runs it. |
-| `src/BrimDeck/App.xaml.cs` | Start Cursor Agent watcher alongside upstream clipboard sync. |
-| `src/BrimDeck/Native/WindowsHost.cs` | Keep fork quiet/busy poll intervals with upstream occupied/`_taken` handling. |
-| `src/BrimDeck/SettingsWindow.cs` | Reset both upstream `Occupied` and fork `ClickThroughHold` defaults. |
-| `src/BrimDeck/UsagePanel.cs`, `ModelDetails.cs` | Quota tooltip / usage trend hooks. |
-| `src/BrimDeck/Monitor*.cs`, `Native/SystemSampler.cs` | Monitor performance and sampling tweaks. |
+| File                                                  | Why                                                                                             |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `src/BrimDeck/Updates/GitHubUpdates.cs`               | Read repository URL and installer AppId from assembly metadata.                                 |
+| `src/BrimDeck/BrimDeck.csproj`                        | Import `ForkRepositoryMetadata.targets`.                                                        |
+| `installer/BrimDeck.iss`                              | Optional Inno defines for AppId, publisher URLs, and data folder (upstream defaults unchanged). |
+| `scripts/Publish-Release.ps1`                         | Pass fork MSBuild properties into the installer build.                                          |
+| `.github/workflows/release.yml`                       | Guard release publishing so only `MoFeng2223/BrimDeck` runs it.                                 |
+| `src/BrimDeck/App.xaml.cs`                            | Start Cursor Agent watcher alongside upstream clipboard sync.                                   |
+| `src/BrimDeck/Native/WindowsHost.cs`                  | Keep fork quiet/busy poll intervals with upstream occupied/`_taken` handling.                   |
+| `src/BrimDeck/SettingsWindow.cs`                      | Reset both upstream `Occupied` and fork `ClickThroughHold` defaults.                            |
+| `src/BrimDeck/App.Hotkeys.cs`                         | Bare ClickThrough keys (Esc, …) observe instead of RegisterHotKey so other apps keep the key.   |
+| `src/BrimDeck/MainWindow.ClickThrough.cs`             | Expose `ReservesEscape` for the bare ClickThrough observer.                                     |
+| `src/BrimDeck/UsagePanel.cs`, `ModelDetails.cs`       | Quota tooltip / usage trend hooks.                                                              |
+| `src/BrimDeck/Monitor*.cs`, `Native/SystemSampler.cs` | Monitor performance and sampling tweaks.                                                        |
 
 New fork-only files: `Directory.Build.props`, `src/BrimDeck/ForkRepositoryMetadata.targets`, `src/BrimDeck/Matti/`, `.github/workflows/upstream-sync.yml`, `scripts/Get-RepositoryBuildProperties.ps1`, `scripts/Update-Local.ps1`, `update-local.cmd`, and this `FORK.md`.
 
