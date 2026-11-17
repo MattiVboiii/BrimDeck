@@ -62,6 +62,7 @@ public partial class App
 
     internal void DisposeHotkeys()
     {
+        EndHoldPassThrough();
         if (_hotkeys is null) return;
         _hotkeys.Pressed -= HotkeyPressed; _hotkeys.Dispose(); _hotkeys = null;
     }
@@ -164,8 +165,9 @@ public partial class App
 
     private HotkeyStatus Register(HotkeyKind kind, string text, int slot, bool repeat)
     {
-        HotkeyGesture.TryParse(text, out var modifiers, out var key);
-        return !HotkeyGesture.ToNative(modifiers, key, out uint fs, out uint vk, repeat) ? HotkeyStatus.Invalid
+        bool bare = HotkeyText.AllowsBareKey(kind);
+        HotkeyGesture.TryParse(text, out var modifiers, out var key, bare);
+        return !HotkeyGesture.ToNative(modifiers, key, out uint fs, out uint vk, repeat, bare) ? HotkeyStatus.Invalid
             : _hotkeys is null || _hotkeySuspensions > 0 ? HotkeyStatus.Active : _hotkeys.Register(kind, fs, vk, slot);
     }
 
@@ -190,7 +192,7 @@ public partial class App
             case HotkeyKind.Expand: ToggleExpandFromHotkey(); break;
             case HotkeyKind.Resize: ResizeFromHotkey(slot); break;
             case HotkeyKind.Move: DeckUnderPointer().MoveFromKeyboard(slot); break;
-            case HotkeyKind.ClickThrough: ToggleClickThrough(); break;
+            case HotkeyKind.ClickThrough: ClickThroughFromHotkey(); break;
             case HotkeyKind.OpenSettings: ToggleSettingsFromHotkey(); break;
             case >= HotkeyKind.Page1 and <= HotkeyKind.Page10: OpenPageFromHotkey(kind - HotkeyKind.Page1); break;
             case HotkeyKind.Refresh: Deck.SyncNow(); break;
