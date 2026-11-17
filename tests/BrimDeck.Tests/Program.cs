@@ -104,6 +104,7 @@ try
     MemoryModeTests.Run(Check);
     OffPeakTests.Run(root, Check);
     QuotaPaceTests.Run(Check);
+    UsageTrendTests.Run(Check);
     FullscreenRuleTests.Run(Check);
     LanguageTests.Run(root, Check);
     await ConfiguredProviderTests.Run(Check);
