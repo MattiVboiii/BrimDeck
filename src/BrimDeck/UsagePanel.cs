@@ -656,19 +656,24 @@ public partial class MainWindow
             Grid.SetColumn(reset, 1); labelRow.Children.Add(reset);
         }
         // A quota spent only in busy or idle hours (CodeAgent) shows when its hours next start, or end while they are on, in place of
-        // the daily reset.
+        // the daily reset. When the burn rate so far is known (QuotaPace), "~2h · in 3h" puts the estimate left of that countdown.
         var hours = quota is { Hours: { } schedule, Period: { } period } ? schedule.Next(period, DateTimeOffset.Now) : default;
         bool timed = hours.At is not null;
+        var now = DateTimeOffset.Now;
         var rightText = text ? quota.ResetText : offPeak ? (change is { } next ? Loc.T(UI.ShortReset(next) + "切换", "switches " + UI.ShortReset(next)) : "")
             : timed ? (hours.On ? Loc.T(UI.ShortReset(hours.At) + "结束", "ends " + UI.ShortReset(hours.At)) : Loc.T(UI.ShortReset(hours.At) + "开始", "starts " + UI.ShortReset(hours.At)))
             : resetText.Length > 0 ? resetText : expiryText;
+        if (!text) rightText = QuotaPace.Line(quota, rightText, now);
         if (rightText.Length > 0)
         {
             var right = UI.Line(rightText, layout.Reset, Look.Tertiary);
             right.FontFamily = UI.PanelFont;
-            right.ToolTip = text ? null : offPeak ? Loc.T($"{change:yyyy-MM-dd HH:mm} 转为" + (offPeakNow ? "高峰时段" : "低峰时段"), (offPeakNow ? "Peak" : "Off-peak") + $" from {change:yyyy-MM-dd HH:mm}")
+            string? tip = text ? null : offPeak ? Loc.T($"{change:yyyy-MM-dd HH:mm} 转为" + (offPeakNow ? "高峰时段" : "低峰时段"), (offPeakNow ? "Peak" : "Off-peak") + $" from {change:yyyy-MM-dd HH:mm}")
                 : timed ? CreditHoursTooltip(quota, hours.At!.Value, hours.On)
-                : (quota.ResetAt ?? quota.ExpiresAt)!.Value.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss");
+                : (quota.ResetAt ?? quota.ExpiresAt) is { } at ? at.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss") : null;
+            if (!text && QuotaPace.Tooltip(quota, now) is { } pace)
+                tip = tip is { Length: > 0 } ? pace + "\n" + tip : pace;
+            right.ToolTip = tip;
             right.VerticalAlignment = VerticalAlignment.Bottom; right.HorizontalAlignment = HorizontalAlignment.Right;
             right.Margin = new Thickness(6, 0, 0, 1); Grid.SetColumn(right, 1); numbers.Children.Add(right);
         }

@@ -355,24 +355,35 @@ public static class QuotaParser
     }
     // A plan merged with Grok (unified) draws every model from one included allowance that resets weekly, so the Cursor
     // and other-model shares no longer apply: totalPercentUsed is its one figure, and billingCycleStart/End is the week.
-    // Older plans keep their billing-period quotas.
+    // Older plans keep their billing-period quotas. Minutes (the cycle length) lets the panel estimate time left at the
+    // current pace (QuotaPace); when the API omits billingCycleStart, the period is taken as the calendar month ending
+    // at the reset (Cursor's older billing cycle).
     public static List<Quota> Cursor(JsonElement root, bool unified = false)
     {
         var plan = root.Get("planUsage");
         if (plan.ValueKind != JsonValueKind.Object) plan = root.Get("individualUsage").Get("plan");
         var reset = root.Get("billingCycleEnd").Date();
+        var minutes = CursorCycleMinutes(root, reset);
         var result = new List<Quota>();
         if (unified)
         {
             if (plan.Get("totalPercentUsed").Number() is not { } used) return result;
-            int? minutes = root.Get("billingCycleStart").Date() is { } begin && reset is { } end && end > begin ? (int)Math.Round((end - begin).TotalMinutes) : null;
             result.Add(new(minutes == 10080 ? "每周额度" : "账期额度", Math.Clamp(used, 0, 100), reset, minutes));
             return result;
         }
         foreach (var (key, label) in new[] { ("autoPercentUsed", "Cursor 模型"), ("apiPercentUsed", "其他模型") })
-            if (plan.Get(key).Number() is { } percent) result.Add(new(label, Math.Clamp(percent, 0, 100), reset));
-        if (result.Count == 0 && plan.Get("totalPercentUsed").Number() is { } total) result.Add(new("账期额度", Math.Clamp(total, 0, 100), reset));
+            if (plan.Get(key).Number() is { } percent) result.Add(new(label, Math.Clamp(percent, 0, 100), reset, minutes));
+        if (result.Count == 0 && plan.Get("totalPercentUsed").Number() is { } total) result.Add(new("账期额度", Math.Clamp(total, 0, 100), reset, minutes));
         return result;
+    }
+    private static int? CursorCycleMinutes(JsonElement root, DateTimeOffset? reset)
+    {
+        if (reset is not { } end) return null;
+        if (root.Get("billingCycleStart").Date() is { } begin && end > begin)
+            return (int)Math.Clamp(Math.Round((end - begin).TotalMinutes), 1, 5_256_000);
+        // Older Cursor responses name only the end; the billing period is a calendar month ending there.
+        var start = end.AddMonths(-1);
+        return (int)Math.Clamp(Math.Round((end - start).TotalMinutes), 1, 5_256_000);
     }
     // GetSandUsageStatus reports one weekly figure for the Grok Bot / Cursor account: how much of the included
     // allowance is used (0-100) and when it resets. usagePercent shares the same scale as the Cursor quotas above.
@@ -380,6 +391,8 @@ public static class QuotaParser
     public static Quota? SandUsage(JsonElement root)
     {
         if (root.Get("usagePercent").Number() is not { } percent) return null;
+        // No Minutes here: the usage page sorts by window length, and a weekly Grok Bot row would jump ahead of
+        // Cursor's billing-period quotas (Cursor models / Other models). Unified plans set Minutes when this row is reused.
         return new("Grok Bot", Math.Clamp(percent, 0, 100), root.Get("nextResetTimestampUtc").Date());
     }
     public static List<Quota> Antigravity(JsonElement root)
