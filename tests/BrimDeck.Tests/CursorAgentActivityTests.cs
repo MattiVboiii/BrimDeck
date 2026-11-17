@@ -6,7 +6,8 @@ static class CursorAgentActivityTests
     {
         check("Empty composer is idle", !CursorAgentActivity.IsActive("""{"status":"none","generatingBubbleIds":[]}"""));
         check("Completed composer is idle", !CursorAgentActivity.IsActive("""{"status":"completed","name":"Done","generatingBubbleIds":[]}"""));
-        check("Aborted composer without tools is idle", !CursorAgentActivity.IsActive("""{"status":"aborted","generatingBubbleIds":[],"unfinishedRunAt":1794774773837}"""));
+        check("Aborted composer without an open run is idle",
+            !CursorAgentActivity.IsActive("""{"status":"aborted","generatingBubbleIds":[]}"""));
 
         check("generatingBubbleIds marks active",
             CursorAgentActivity.IsActive("""{"status":"none","generatingBubbleIds":["b1"]}"""));
@@ -14,6 +15,8 @@ static class CursorAgentActivityTests
             CursorAgentActivity.IsActive("""{"status":"completed","isContinuationInProgress":true,"generatingBubbleIds":[]}"""));
         check("Non-terminal status marks active",
             CursorAgentActivity.IsActive("""{"status":"generating","generatingBubbleIds":[]}"""));
+        check("unfinishedRunAt marks active while thinking (aborted status, no bubbles)",
+            CursorAgentActivity.IsActive("""{"status":"aborted","generatingBubbleIds":[],"unfinishedRunAt":1794774773837}"""));
 
         var loading = """{"type":2,"toolFormerData":{"name":"read_file_v2","status":"loading"}}""";
         var done = """{"type":2,"toolFormerData":{"name":"read_file_v2","status":"completed"}}""";
@@ -47,6 +50,13 @@ static class CursorAgentActivityTests
             desktop.Bubbles["c-active"] = [done];
             var after = CursorAgentActivity.Read(desktop, path, DateTimeOffset.Now);
             check("Read reports idle when tools finished", !after.Active);
+
+            desktop.Values["composerData:c-active"] =
+                """{"status":"aborted","name":"Thinking","generatingBubbleIds":[],"unfinishedRunAt":1794774773837,"modelConfig":{"modelName":"composer-1"}}""";
+            desktop.Bubbles["c-active"] = [done];
+            var thinking = CursorAgentActivity.Read(desktop, path, DateTimeOffset.Now);
+            check("Read reports active while unfinishedRunAt is set without loading tools",
+                thinking.Active && thinking.Name == "Thinking");
         }
         finally { try { File.Delete(path); } catch (IOException) { } }
     }

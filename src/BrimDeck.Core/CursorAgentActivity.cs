@@ -61,11 +61,18 @@ public static class CursorAgentActivity
     {
         if (HasGeneratingBubbles(composer)) return true;
         if (composer.Get("isContinuationInProgress").ValueKind == JsonValueKind.True) return true;
+        // Mid-turn Cursor often sets status to a terminal value (commonly "aborted") with an empty
+        // generatingBubbleIds list while the model is thinking between tool steps. unfinishedRunAt
+        // stays set on composerData for the whole open run and is cleared when the turn finishes.
+        if (HasUnfinishedRun(composer)) return true;
         var status = composer.Get("status").Text();
         if (status.Length > 0 && !TerminalStatus.Contains(status)) return true;
         if (hasUnfinishedTool) return true;
         return false;
     }
+
+    public static bool HasUnfinishedRun(JsonElement composer) =>
+        composer.Get("unfinishedRunAt").ValueKind is JsonValueKind.Number;
 
     public static string DisplayName(JsonElement composer)
     {
