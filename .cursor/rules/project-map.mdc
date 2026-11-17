@@ -20,39 +20,40 @@ Windows 11 Dynamic Island (C# / WPF / .NET 10). Solution: `BrimDeck.sln`. Fork n
 | `installer/`                  | Inno Setup (`BrimDeck.iss`)                                                                                                               |
 | `scripts/`                    | Publish, local update (`Update-Local.ps1`), icons, readme media                                                                           |
 | `update-local.cmd`            | Fast local deploy: publish app → swap into `%LocalAppData%\Programs\BrimDeck` → restart (`scripts/Update-Local.ps1`; `-NoStart` optional) |
-| `docs/en-US/`, `docs/zh-CN/`  | Feature docs (ai-tools, music, monitor, devices, clipboard, themes, sensors)                                                              |
+| `docs/en-US/`, `docs/zh-CN/`  | Feature docs (ai-tools, music, monitor, devices, clipboard, clipboard-sync, themes, sensors)                                              |
 | `releases/`                   | Per-version release notes                                                                                                                 |
 
 ## Pages (`DeckPage` in `Core/Settings.cs`)
 
-| Page              | UI                                  | Core / Native                                                                                 |
-| ----------------- | ----------------------------------- | --------------------------------------------------------------------------------------------- |
-| Usage             | `UsagePanel.cs`, `ModelDetails.cs`  | `UsageService.cs`, `*Usage.cs`, `QuotaRing.cs`                                                |
-| Music             | `MainWindow.Music*.cs`, `Music*.cs` | `Music.cs`, `Media*.cs`, `Native/*Media*`, `*ControlWindow.cs`                                |
-| Monitor           | `Monitor*.cs`                       | `Monitor*.cs`, `CpuSensors.cs`, `Native/CpuProvider.cs`, `GpuProvider.cs`, `SystemSampler.cs` |
-| Clipboard / shelf | `MainWindow.Shelf*.cs`, `Shelf*.cs` | `Shelf.cs`, `ShelfRules.cs`, `Native/ClipboardWatch.cs`                                       |
-| Devices           | `Devices*.cs`, `DeviceStrip.cs`     | `Devices.cs`, `DeviceReads.cs`, `Brands/`, `Native/*Batteries.cs`, `Hid*.cs`                  |
+| Page              | UI                                                          | Core / Native                                                                                                      |
+| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Usage             | `UsagePanel.cs`, `ModelDetails.cs`, `Matti/UsageTrendGraph` | `UsageService.cs`, `*Usage.cs`, `QuotaRing.cs`, `UsageTrend.cs`                                                     |
+| Music             | `MainWindow.Music*.cs`, `Music*.cs`, `MusicLyricsPreview`   | `Music.cs`, `MusicLayout.cs`, `Media*.cs`, `Native/*Media*`, `*ControlWindow.cs`                                   |
+| Monitor           | `Monitor*.cs`                                               | `Monitor*.cs`, `CpuSensors.cs`, `Native/CpuProvider.cs`, `GpuProvider.cs`, `SystemSampler.cs`                      |
+| Clipboard / shelf | `MainWindow.Shelf*.cs`, `Shelf*.cs`, `SettingsClipboardSync` | `Shelf.cs`, `ShelfRules.cs`, `Native/ClipboardWatch.cs`, `ClipboardSync/*`, `ClipboardSyncService*.cs`             |
+| Devices           | `Devices*.cs`, `DeviceStrip.cs`                             | `Devices.cs`, `DeviceReads.cs`, `PhoneLinkCard.cs`, `Brands/`, `Native/*Batteries.cs`, `PhoneLinkBatteries.cs`     |
 
 Collapsed notch/capsule/indicator: `MainWindow.Compact*.cs`, `Core/Collapsed*.cs`, `Compact*.cs`.
 
 ## Settings UI
 
-`SettingsWindow.cs` + `Settings*.cs` partials (Providers, Music, Monitor, Devices, Shelf, Themes, Sensors, Hotkeys, Updates, …). XAML: `SettingsResources.xaml`.
+`SettingsWindow.cs` + `Settings*.cs` partials (Providers, Music, Monitor, Devices, Shelf, ClipboardSync, Themes, Sensors, Hotkeys, Updates, …). XAML: `SettingsResources.xaml`.
 
 ## Cross-cutting
 
-- Themes: `PanelTheme.cs`, `Core/PanelThemes*.cs`, `Core/Themes/*.json`
+- Themes: `PanelTheme.cs`, `Core/PanelThemes*.cs` (incl. Daylight / follow Windows), `Core/Themes/*.json`
 - Localization: `Core/Loc.cs`
 - Settings model / migrations: `Core/Settings.cs`, `SettingsMigrations.cs`, `DataLocations.cs`
+- Window rules: `ScreenPolicy.cs`, `Native/WindowsHost.cs` (fullscreen, exclusive, occupied/overlap)
 - Updates: `Updates/GitHubUpdates.cs`, `Core/AppUpdates.cs`, `InstallerUpdates.cs`
 - Hotkeys / tray: `App.Hotkeys.cs`, `Native/GlobalHotkeys.cs`, `TrayIcon.cs`
 - Entry: `Program.cs`, `App.xaml(.cs)`
 
 ## Fork (Matti)
 
-- Prefer new code under `src/BrimDeck/Matti/` (see that folder’s README).
+- Prefer new code under `src/BrimDeck/Matti/` (see that folder’s README): click-through hold, Cursor Agent indicator, usage trend graph.
 - Fork MSBuild overrides: root `Directory.Build.props`; defaults in `ForkRepositoryMetadata.targets`.
-- Branches: `main` = upstream mirror; work lands on `matti` (`feat/*` / `fix/*` → `matti`).
+- Branches: `main` = upstream mirror (currently v1.3.2); work lands on `matti` (`feat/*` / `fix/*` → `matti`).
 
 ## Search tips
 

@@ -32,6 +32,10 @@ Defaults for a vanilla upstream tree live in `src/BrimDeck/ForkRepositoryMetadat
 
 Publishing (`scripts/Publish-Release.ps1`) passes the same values into `installer/BrimDeck.iss` via Inno Setup defines.
 
+## Upstream sync status
+
+`main` fast-forwards from [MoFeng2223/BrimDeck](https://github.com/MoFeng2223/BrimDeck) `main`. Last merged into `matti`: upstream **v1.3.2** (clipboard sync, Phone Link batteries, music expand layouts, daylight themes, occupied window rule, shelf drag/stack options, device brand updates, ZCode quota fix, and related fixes). See `releases/1.3.2.md`.
+
 ## Upstream files this fork intentionally touches
 
 Keep this list short when you add more fork behavior:
@@ -43,8 +47,13 @@ Keep this list short when you add more fork behavior:
 | `installer/BrimDeck.iss` | Optional Inno defines for AppId, publisher URLs, and data folder (upstream defaults unchanged). |
 | `scripts/Publish-Release.ps1` | Pass fork MSBuild properties into the installer build. |
 | `.github/workflows/release.yml` | Guard release publishing so only `MoFeng2223/BrimDeck` runs it. |
+| `src/BrimDeck/App.xaml.cs` | Start Cursor Agent watcher alongside upstream clipboard sync. |
+| `src/BrimDeck/Native/WindowsHost.cs` | Keep fork quiet/busy poll intervals with upstream occupied/`_taken` handling. |
+| `src/BrimDeck/SettingsWindow.cs` | Reset both upstream `Occupied` and fork `ClickThroughHold` defaults. |
+| `src/BrimDeck/UsagePanel.cs`, `ModelDetails.cs` | Quota tooltip / usage trend hooks. |
+| `src/BrimDeck/Monitor*.cs`, `Native/SystemSampler.cs` | Monitor performance and sampling tweaks. |
 
-New fork-only files: `Directory.Build.props`, `src/BrimDeck/ForkRepositoryMetadata.targets`, `src/BrimDeck/Matti/`, `.github/workflows/upstream-sync.yml`, `scripts/Get-RepositoryBuildProperties.ps1`, and this `FORK.md`.
+New fork-only files: `Directory.Build.props`, `src/BrimDeck/ForkRepositoryMetadata.targets`, `src/BrimDeck/Matti/`, `.github/workflows/upstream-sync.yml`, `scripts/Get-RepositoryBuildProperties.ps1`, `scripts/Update-Local.ps1`, `update-local.cmd`, and this `FORK.md`.
 
 Settings UI still links to upstream GitHub in a few places (`SettingsWindow.cs`); that is intentional so feedback and community links stay on the upstream project.
 
