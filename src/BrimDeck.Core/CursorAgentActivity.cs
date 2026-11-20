@@ -15,8 +15,6 @@ public static class CursorAgentActivity
     private const int RecentComposerLimit = 25;
     private static readonly HashSet<string> TerminalStatus = new(StringComparer.OrdinalIgnoreCase)
     { "completed", "none", "aborted", "cancelled", "canceled" };
-    private static readonly HashSet<string> FinishedTool = new(StringComparer.OrdinalIgnoreCase)
-    { "completed", "error", "cancelled", "canceled" };
 
     // Instantaneous reading (no grace). The watcher applies Grace across polls.
     public static CursorAgentSnapshot Read(IDesktopSources desktop, string cursorDatabase, DateTimeOffset now)
@@ -27,8 +25,7 @@ public static class CursorAgentActivity
             foreach (var composerId in RecentComposerIds(desktop, cursorDatabase))
             {
                 if (ReadComposer(desktop, cursorDatabase, composerId) is not { } composer) continue;
-                bool tools = HasUnfinishedTools(desktop, cursorDatabase, composerId);
-                if (!IsActive(composer, tools)) continue;
+                if (!IsActive(composer)) continue;
                 return new CursorAgentSnapshot(true, DisplayName(composer), ModelName(composer), now);
             }
             return CursorAgentSnapshot.Idle(now);
@@ -39,25 +36,14 @@ public static class CursorAgentActivity
         }
     }
 
-    // Pure parse for tests: composer JSON plus optional bubble JSON texts.
-    public static bool IsActive(string composerJson, IEnumerable<string>? bubbleJsons = null)
+    // Pure parse for tests: composer JSON.
+    public static bool IsActive(string composerJson)
     {
         using var doc = JsonDocument.Parse(composerJson);
-        bool tools = false;
-        if (bubbleJsons is not null)
-            foreach (var bubble in bubbleJsons)
-            {
-                try
-                {
-                    using var bubbleDoc = JsonDocument.Parse(bubble);
-                    if (ToolUnfinished(bubbleDoc.RootElement)) { tools = true; break; }
-                }
-                catch (JsonException) { }
-            }
-        return IsActive(doc.RootElement, tools);
+        return IsActive(doc.RootElement);
     }
 
-    public static bool IsActive(JsonElement composer, bool hasUnfinishedTool)
+    public static bool IsActive(JsonElement composer)
     {
         if (HasGeneratingBubbles(composer)) return true;
         if (composer.Get("isContinuationInProgress").ValueKind == JsonValueKind.True) return true;
@@ -67,7 +53,8 @@ public static class CursorAgentActivity
         if (HasUnfinishedRun(composer)) return true;
         var status = composer.Get("status").Text();
         if (status.Length > 0 && !TerminalStatus.Contains(status)) return true;
-        if (hasUnfinishedTool) return true;
+        // Do not treat toolFormerData.status == "loading" as active on its own: Cursor often leaves
+        // stale loading bubbles after a turn has already completed and unfinishedRunAt was cleared.
         return false;
     }
 
@@ -100,12 +87,6 @@ public static class CursorAgentActivity
             foreach (var _ in gens.EnumerateObject()) return true;
         }
         return false;
-    }
-
-    public static bool ToolUnfinished(JsonElement bubble)
-    {
-        var status = bubble.Get("toolFormerData").Get("status").Text();
-        return status.Length > 0 && !FinishedTool.Contains(status);
     }
 
     private static IEnumerable<string> RecentComposerIds(IDesktopSources desktop, string database)
@@ -142,32 +123,6 @@ public static class CursorAgentActivity
             return doc.RootElement.Clone();
         }
         catch (JsonException) { return null; }
-    }
-
-    private static bool HasUnfinishedTools(IDesktopSources desktop, string database, string composerId)
-    {
-        // Prefer a JSON path when SQLite has json1; fall back to a bounded key scan.
-        var rows = desktop.QueryDatabase(database,
-            "SELECT value FROM cursorDiskKV WHERE key LIKE 'bubbleId:" + Escape(composerId) + ":%' " +
-            "AND json_extract(value, '$.toolFormerData.status') IS NOT NULL " +
-            "AND lower(json_extract(value, '$.toolFormerData.status')) NOT IN ('completed','error','cancelled','canceled') LIMIT 1");
-        if (rows is { Count: > 0 }) return true;
-        if (rows is not null) return false;
-
-        var bubbles = desktop.QueryDatabase(database,
-            "SELECT value FROM cursorDiskKV WHERE key LIKE 'bubbleId:" + Escape(composerId) + ":%' LIMIT 80");
-        if (bubbles is null) return false;
-        foreach (var row in bubbles)
-        {
-            if (row is not { Length: > 0 } || row[0] is not { Length: > 0 } json) continue;
-            try
-            {
-                using var doc = JsonDocument.Parse(json);
-                if (ToolUnfinished(doc.RootElement)) return true;
-            }
-            catch (JsonException) { }
-        }
-        return false;
     }
 
     private static string Escape(string value) => value.Replace("'", "''", StringComparison.Ordinal);

@@ -10,7 +10,10 @@ Keep changes outside this folder as small as possible so merges from [MoFeng2223
 | --------------------------- | ------------------------------------------------------------------------ |
 | `App.ClickThroughHold.cs`   | Hold-to-pass-through; bare Esc/CapsLock watched without stealing the key |
 | `App.CursorAgent.cs`        | Wires the Cursor Agent watcher at app start                              |
+| `App.QuotaAlertTrigger.cs`  | Named-event listener so `trigger-alert.cmd` demos a device warning       |
+| `AlertPanel.cs`             | Devices-style single card for opt-in ExpandedQuotaAlerts                 |
 | `CursorAgentWatcher.cs`     | Watches Cursor Agent activity for the compact indicator                  |
+| `MainWindow.AlertPanel.cs`  | Expanded warning panel when ExpandedQuotaAlerts is on (not a page tab)   |
 | `MainWindow.CursorAgent.cs` | Compact-row UI for Cursor Agent status                                   |
 | `UsageTrendGraph.cs`        | Model usage trend chart drawn in model details                           |
 

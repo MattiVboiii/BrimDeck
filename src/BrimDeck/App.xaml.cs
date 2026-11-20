@@ -132,6 +132,7 @@ public partial class App : Application
         WindowDrags = new WindowDrags();
         Shelf = new ShelfService(folder, Dispatcher); Shelf.Apply(Settings);
         StartCursorAgentWatcher();
+        StartQuotaAlertTrigger();
         ClipboardSync = new ClipboardSyncService(this, folder); ClipboardSync.Apply();
         Deck = new MainWindow(this); MainWindow = Deck;
         Displays = Native.Displays.Current(); AssignDisplays();
