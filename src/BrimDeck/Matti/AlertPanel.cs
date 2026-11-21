@@ -56,11 +56,7 @@ internal sealed class AlertPanel : FrameworkElement
             DeviceGlyphs.Draw(drawing, kind, new Rect(center.X - s.Icon / 2, center.Y - s.Icon / 2, s.Icon, s.Icon),
                 _percent is null ? _look.Tertiary : _look.Primary);
         if (_charging && _percent is not null)
-        {
-            double bolt = Math.Round(s.Ring * .22);
-            var at = new Point(center.X + (s.Ring - s.Stroke) / 2 * .72, center.Y + (s.Ring - s.Stroke) / 2 * .72);
-            DeviceGlyphs.Bolt(drawing, new Rect(at.X - bolt / 2, at.Y - bolt / 2, bolt, bolt), _look.Hex("surface"));
-        }
+            DevicesView.Badge(drawing, center, (s.Ring - s.Stroke) / 2, Math.Round(s.Ring * .22), _ringColor, look: _look);
 
         double x = left + s.Ring + s.Gap, width = Math.Max(10, left + contentW - x);
         double block = s.FigureLine + 2 + s.NameLine + s.DetailLine, textTop = Math.Round(center.Y - block / 2);
