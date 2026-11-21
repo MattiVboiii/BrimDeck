@@ -419,7 +419,7 @@ public partial class MainWindow : Window
         // Made ordinary, at startup too, the panel goes beneath the window in use like a closed one; so does an ordinary panel
         // whose indicator is no longer called for.
         if (Topmost != KeepsAbove) { Topmost = KeepsAbove; if (!Topmost && !_expanded) _host.Front(false); }
-        if (!Settings.QuotaAlerts && _alert is not null) ClearAlert();
+        if (_alert is not null && (_alert.Device is null ? !Settings.QuotaAlerts : !Settings.DeviceChargeAlerts)) ClearAlert();
         ApplySyncSchedule();
         ApplyMusicSettings();
         ApplySecondClock();

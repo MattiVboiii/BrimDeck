@@ -25,13 +25,13 @@ Windows 11 Dynamic Island (C# / WPF / .NET 10). Solution: `BrimDeck.sln`. Fork n
 
 ## Pages (`DeckPage` in `Core/Settings.cs`)
 
-| Page              | UI                                                           | Core / Native                                                                                                  |
-| ----------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| Usage             | `UsagePanel.cs`, `ModelDetails.cs`, `Matti/UsageTrendGraph`  | `UsageService.cs`, `*Usage.cs`, `QuotaRing.cs`, `UsageTrend.cs`                                                |
-| Music             | `MainWindow.Music*.cs`, `Music*.cs`, `MusicLyricsPreview`    | `Music.cs`, `MusicLayout.cs`, `Media*.cs`, `Native/*Media*`, `*ControlWindow.cs`                               |
+| Page              | UI                                                           | Core / Native                                                                                                    |
+| ----------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Usage             | `UsagePanel.cs`, `ModelDetails.cs`, `Matti/UsageTrendGraph`  | `UsageService.cs`, `*Usage.cs`, `QuotaRing.cs`, `UsageTrend.cs`                                                  |
+| Music             | `MainWindow.Music*.cs`, `Music*.cs`, `MusicLyricsPreview`    | `Music.cs`, `MusicLayout.cs`, `Media*.cs`, `Native/*Media*`, `*ControlWindow.cs`                                 |
 | Monitor           | `Monitor*.cs`, `MonitorView.Grid`, `SettingsMonitorGrid`     | `Monitor*.cs`, `ExpandedGrid.cs`, `CpuSensors.cs`, `Native/CpuProvider.cs`, `GpuProvider.cs`, `SystemSampler.cs` |
-| Clipboard / shelf | `MainWindow.Shelf*.cs`, `Shelf*.cs`, `SettingsClipboardSync` | `Shelf.cs`, `ShelfRules.cs`, `Native/ClipboardWatch.cs`, `ClipboardSync/*`, `ClipboardSyncService*.cs`         |
-| Devices           | `Devices*.cs`, `DeviceStrip.cs`                              | `Devices.cs`, `DeviceReads.cs`, `PhoneLinkCard.cs`, `Brands/`, `Native/*Batteries.cs`, `PhoneLinkBatteries.cs` |
+| Clipboard / shelf | `MainWindow.Shelf*.cs`, `Shelf*.cs`, `SettingsClipboardSync` | `Shelf.cs`, `ShelfRules.cs`, `Native/ClipboardWatch.cs`, `ClipboardSync/*`, `ClipboardSyncService*.cs`           |
+| Devices           | `Devices*.cs`, `DeviceStrip.cs`                              | `Devices.cs`, `DeviceReads.cs`, `PhoneLinkCard.cs`, `Brands/`, `Native/*Batteries.cs`, `PhoneLinkBatteries.cs`   |
 
 Collapsed notch/capsule/indicator: `MainWindow.Compact*.cs`, `Core/Collapsed*.cs`, `Compact*.cs`.
 

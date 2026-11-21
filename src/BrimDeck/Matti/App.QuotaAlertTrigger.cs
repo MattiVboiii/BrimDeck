@@ -53,13 +53,14 @@ public partial class App
 
         var device = devices[AlertPick.Next(devices.Count)];
         int percent = device.Lowest!.Value;
-        var level = Core.Devices.Level(percent, device.Charging, Settings.DeviceWarningPercent, Settings.DeviceLowPercent);
-        string warning = level switch
-        {
-            MemoryLevel.Critical => Loc.T("电量低", "Battery low"),
-            MemoryLevel.Elevated => Loc.T("电量偏低", "Getting low"),
-            _ => Loc.T("电量偏低", "Getting low"),
-        };
+        string warning = Core.Devices.ChargeReady(percent, device.Charging, Settings.DeviceChargeAlertPercent)
+            ? Loc.T("电量充足", "Charged enough")
+            : Core.Devices.Level(percent, device.Charging, Settings.DeviceWarningPercent, Settings.DeviceLowPercent) switch
+            {
+                MemoryLevel.Critical => Loc.T("电量低", "Battery low"),
+                MemoryLevel.Elevated => Loc.T("电量偏低", "Getting low"),
+                _ => Loc.T("电量偏低", "Getting low"),
+            };
         foreach (var deck in Decks)
             deck.ShowDeviceAlert(device, warning);
     }

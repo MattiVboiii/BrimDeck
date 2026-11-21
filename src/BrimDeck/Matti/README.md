@@ -14,6 +14,7 @@ Keep changes outside this folder as small as possible so merges from [MoFeng2223
 | `AlertPanel.cs`             | Devices-style single card for opt-in ExpandedQuotaAlerts                 |
 | `CursorAgentWatcher.cs`     | Watches Cursor Agent activity for the compact indicator                  |
 | `MainWindow.AlertPanel.cs`  | Expanded warning panel when ExpandedQuotaAlerts is on (not a page tab)   |
+| `MainWindow.DeviceAlerts.cs`| Charge-ready notices when a device rises to the charge threshold         |
 | `MainWindow.CursorAgent.cs` | Compact-row UI for Cursor Agent status                                   |
 | `UsageTrendGraph.cs`        | Model usage trend chart drawn in model details                           |
 

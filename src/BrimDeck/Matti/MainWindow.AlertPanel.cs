@@ -16,7 +16,7 @@ public partial class MainWindow
     internal void ShowDeviceAlert(DeviceBattery device, string warning)
     {
         var theme = Settings.ConfiguredApps.FirstOrDefault() ?? Settings.Apps.FirstOrDefault() ?? new AppEntry { DisplayName = device.Name };
-        double used = device.Lowest is { } p ? (Settings.QuotaRingRemaining ? 100 - p : p) : 0;
+        double used = device.Lowest ?? 0;
         ShowAlert(new CompactAlertInfo(theme, device.Name, warning + " ", used, null, warning, device));
     }
 

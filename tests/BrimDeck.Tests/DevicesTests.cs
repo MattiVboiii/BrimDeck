@@ -11,6 +11,7 @@ static class DevicesTests
         Roster(check);
         Earlier(check);
         Levels(check);
+        ChargeAlerts(check);
     }
 
     private static void Kinds(Action<string, bool> check)
@@ -106,9 +107,27 @@ static class DevicesTests
 
     private static void Levels(Action<string, bool> check)
     {
-        check("Devices: levels at the low and the warning thresholds", Devices.Level(15, false, 25, 15) == MemoryLevel.Critical && Devices.Level(16, false, 25, 15) == MemoryLevel.Elevated
-            && Devices.Level(25, false, 25, 15) == MemoryLevel.Elevated && Devices.Level(26, false, 25, 15) == MemoryLevel.Normal);
-        check("Devices: a charging or unreported battery is never low", Devices.Level(3, true, 25, 15) == MemoryLevel.Normal && Devices.Level(null, false, 25, 15) == MemoryLevel.Normal);
+        check("Devices: levels at the low and the warning thresholds", Devices.Level(10, false, 20, 10) == MemoryLevel.Critical && Devices.Level(11, false, 20, 10) == MemoryLevel.Elevated
+            && Devices.Level(20, false, 20, 10) == MemoryLevel.Elevated && Devices.Level(21, false, 20, 10) == MemoryLevel.Normal);
+        check("Devices: a charging or unreported battery is never low", Devices.Level(3, true, 20, 10) == MemoryLevel.Normal && Devices.Level(null, false, 20, 10) == MemoryLevel.Normal);
+        check("Devices: charge-ready at the threshold while charging", Devices.ChargeReady(80, true) && !Devices.ChargeReady(79, true) && !Devices.ChargeReady(80, false) && !Devices.ChargeReady(null, true));
         check("Devices: figures", Devices.Figure(42) == "42%" && Devices.Figure(null) == "—" && Devices.Figure(130) == "100%");
+    }
+
+    private static void ChargeAlerts(Action<string, bool> check)
+    {
+        var levels = new DeviceLevels();
+        var charging = Bt("AA", 70) with { Charging = true };
+        check("Devices: the first charge reading only seeds", levels.Update([charging], 80) is null);
+        check("Devices: still below the threshold raises none", levels.Update([charging with { Percent = 79 }], 80) is null);
+        check("Devices: rising to the threshold while charging raises a notice",
+            levels.Update([charging with { Percent = 80 }], 80) is { Device.Key: "bt:AA", Warning: not null });
+        check("Devices: staying at or above the threshold raises none again",
+            levels.Update([charging with { Percent = 90 }], 80) is null);
+        check("Devices: unplugging then charging past the threshold raises again",
+            levels.Update([charging with { Percent = 90, Charging = false }], 80) is null
+            && levels.Update([charging with { Percent = 90, Charging = true }], 80) is { Device.Key: "bt:AA" });
+        check("Devices: already charged on a fresh tracker raises none",
+            new DeviceLevels().Update([charging with { Percent = 85, Charging = true }], 80) is null);
     }
 }
