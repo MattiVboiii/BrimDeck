@@ -121,7 +121,7 @@ public partial class MainWindow : Window
     // The page built while it waited is not reused (RenderUsage compares its build key, which a failed read does not change).
     internal void FirstReadEnded() { if (_firstReadEnded) return; _firstReadEnded = true; _usageBuilt = null; }
 
-    private sealed record CompactAlertInfo(AppEntry Entry, string Name, string Label, double Used, DateTimeOffset? ResetAt);
+    private sealed record CompactAlertInfo(AppEntry Entry, string Name, string Label, double Used, DateTimeOffset? ResetAt, string? Detail = null, DeviceBattery? Device = null);
 
     public MainWindow(App app, MainWindow? lead = null)
     {
@@ -415,7 +415,7 @@ public partial class MainWindow : Window
         // Made ordinary, at startup too, the panel goes beneath the window in use like a closed one; so does an ordinary panel
         // whose indicator is no longer called for.
         if (Topmost != KeepsAbove) { Topmost = KeepsAbove; if (!Topmost && !_expanded) _host.Front(false); }
-        if (!Settings.QuotaAlerts && _alert is not null) ClearAlert();
+        if (_alert is not null && (_alert.Device is null ? !Settings.QuotaAlerts : !Settings.DeviceChargeAlerts)) ClearAlert();
         ApplySyncSchedule();
         ApplyMusicSettings();
         ApplySecondClock();

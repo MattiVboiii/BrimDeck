@@ -63,7 +63,7 @@ HID devices that carry the standard battery report are shown too.
 
 ## Display and settings
 
-- **Battery thresholds**: at or under the warning threshold (25% by default) a battery shows as getting low, in the warning color; at or under the critical threshold (15% by default) it shows as low, in the critical color. A charging device shows a bolt.
+- **Battery thresholds**: at or under the warning threshold (25% by default) a battery shows as getting low, in the warning color; at or under the critical threshold (15% by default) it shows as low, in the critical color. A charging device shows a bolt. With charge notices on (default), a device that charges to 80% or more briefly shows its name and charge on the collapsed notch or capsule.
 - **Device list**: rename a device, drag to reorder, set the color of each state, and choose separately whether it shows on the page and when collapsed, and whether its battery is read. Once you have changed the list, disconnected devices stay in it; choose "Forget" for one you no longer need.
 - **When collapsed**: turn on "Device batteries" for the notch or capsule under Settings › Collapsed view › Content, and each device shows as a ring; the figures beside the rings are optional.
 
