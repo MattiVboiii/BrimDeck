@@ -118,16 +118,27 @@ static class DevicesTests
     {
         var levels = new DeviceLevels();
         var charging = Bt("AA", 70) with { Charging = true };
-        check("Devices: the first charge reading only seeds", levels.Update([charging], 80) is null);
-        check("Devices: still below the threshold raises none", levels.Update([charging with { Percent = 79 }], 80) is null);
+        var other = Bt("BB", 70, "Buds", DeviceKind.Earbuds) with { Charging = true };
+        check("Devices: the first charge reading only seeds", levels.Update([charging], 80).Count == 0);
+        check("Devices: still below the threshold raises none", levels.Update([charging with { Percent = 79 }], 80).Count == 0);
         check("Devices: rising to the threshold while charging raises a notice",
-            levels.Update([charging with { Percent = 80 }], 80) is { Device.Key: "bt:AA", Warning: not null });
+            levels.Update([charging with { Percent = 80 }], 80) is [{ Device.Key: "bt:AA", Warning: not null }]);
         check("Devices: staying at or above the threshold raises none again",
-            levels.Update([charging with { Percent = 90 }], 80) is null);
+            levels.Update([charging with { Percent = 90 }], 80).Count == 0);
         check("Devices: unplugging then charging past the threshold raises again",
-            levels.Update([charging with { Percent = 90, Charging = false }], 80) is null
-            && levels.Update([charging with { Percent = 90, Charging = true }], 80) is { Device.Key: "bt:AA" });
+            levels.Update([charging with { Percent = 90, Charging = false }], 80).Count == 0
+            && levels.Update([charging with { Percent = 90, Charging = true }], 80) is [{ Device.Key: "bt:AA" }]);
         check("Devices: already charged on a fresh tracker raises none",
-            new DeviceLevels().Update([charging with { Percent = 85, Charging = true }], 80) is null);
+            new DeviceLevels().Update([charging with { Percent = 85, Charging = true }], 80).Count == 0);
+        var batch = new DeviceLevels();
+        check("Devices: the first look at two devices only seeds both",
+            batch.Update([charging with { Percent = 79 }, other with { Percent = 79 }], 80).Count == 0);
+        var both = batch.Update([charging with { Percent = 80 }, other with { Percent = 80 }], 80);
+        check("Devices: two devices crossing the threshold in one batch both raise",
+            both.Count == 2 && both[0].Device.Key == "bt:AA" && both[1].Device.Key == "bt:BB");
+        var late = new DeviceLevels();
+        check("Devices: a later device's first reading only seeds, even after another was already tracked",
+            late.Update([charging], 80).Count == 0
+            && late.Update([charging, other with { Percent = 90 }], 80).Count == 0);
     }
 }

@@ -812,7 +812,7 @@ public partial class MainWindow : Window
 
     internal void ShowAlert(AppEntry entry, string label, double used, DateTimeOffset? resetAt)
         => ShowAlert(new CompactAlertInfo(entry, entry.Name, label + " ", used, resetAt));
-    internal void ClearAlert() { _alertTimer.Stop(); _alert = null; RenderCompact(); }
+    internal void ClearAlert() { _alertTimer.Stop(); _alert = null; RenderCompact(); TryShowPendingDeviceAlert(); }
     // No alert while the panel is suppressed (full-screen rule or hidden by the user): it would not be seen, and it must not
     // appear later when the panel shows again.
     private void ShowAlert(CompactAlertInfo alert)
