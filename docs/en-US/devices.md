@@ -2,7 +2,7 @@
 
 The device batteries page shows the battery of the connected wireless mice, keyboards, headsets, controllers, pens and phones; the notch and capsule can show them too. The settings are under Settings › Display and devices.
 
-BrimDeck only reads batteries: it never pairs, disconnects or changes any device or Windows setting, needs no administrator rights and installs no driver. Devices are read only while the device batteries page is open, the notch or capsule shows device batteries, or Settings › Display and devices is open.
+BrimDeck only reads batteries: it never pairs, disconnects or changes any device or Windows setting, needs no administrator rights and installs no driver. Devices are read while the device batteries page is open, the notch or capsule shows device batteries, Settings › Display and devices is open, or charge notices are enabled and the screen is on.
 
 ## Supported connections
 
