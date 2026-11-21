@@ -29,7 +29,7 @@ Windows 11 Dynamic Island (C# / WPF / .NET 10). Solution: `BrimDeck.sln`. Fork n
 | ----------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | Usage             | `UsagePanel.cs`, `ModelDetails.cs`, `Matti/UsageTrendGraph`  | `UsageService.cs`, `*Usage.cs`, `QuotaRing.cs`, `UsageTrend.cs`                                                |
 | Music             | `MainWindow.Music*.cs`, `Music*.cs`, `MusicLyricsPreview`    | `Music.cs`, `MusicLayout.cs`, `Media*.cs`, `Native/*Media*`, `*ControlWindow.cs`                               |
-| Monitor           | `Monitor*.cs`                                                | `Monitor*.cs`, `CpuSensors.cs`, `Native/CpuProvider.cs`, `GpuProvider.cs`, `SystemSampler.cs`                  |
+| Monitor           | `Monitor*.cs`, `MonitorView.Grid`, `SettingsMonitorGrid`     | `Monitor*.cs`, `ExpandedGrid.cs`, `CpuSensors.cs`, `Native/CpuProvider.cs`, `GpuProvider.cs`, `SystemSampler.cs` |
 | Clipboard / shelf | `MainWindow.Shelf*.cs`, `Shelf*.cs`, `SettingsClipboardSync` | `Shelf.cs`, `ShelfRules.cs`, `Native/ClipboardWatch.cs`, `ClipboardSync/*`, `ClipboardSyncService*.cs`         |
 | Devices           | `Devices*.cs`, `DeviceStrip.cs`                              | `Devices.cs`, `DeviceReads.cs`, `PhoneLinkCard.cs`, `Brands/`, `Native/*Batteries.cs`, `PhoneLinkBatteries.cs` |
 
@@ -37,13 +37,13 @@ Collapsed notch/capsule/indicator: `MainWindow.Compact*.cs`, `Core/Collapsed*.cs
 
 ## Settings UI
 
-`SettingsWindow.cs` + `Settings*.cs` partials (Providers, Music, Monitor, Devices, Shelf, ClipboardSync, Themes, Sensors, Hotkeys, Updates, …). XAML: `SettingsResources.xaml`.
+`SettingsWindow.cs` + `Settings*.cs` partials (Providers, Music, Monitor, Devices, Shelf, ClipboardSync, Backup, Themes, Sensors, Hotkeys, Updates, …). XAML: `SettingsResources.xaml`.
 
 ## Cross-cutting
 
-- Themes: `PanelTheme.cs`, `Core/PanelThemes*.cs` (incl. Daylight / follow Windows), `Core/Themes/*.json`
+- Themes: `PanelTheme.cs`, `Core/PanelThemes*.cs` (incl. Daylight / follow Windows), `Core/ThemeMotion.cs`, `Core/Themes/*.json`
 - Localization: `Core/Loc.cs`
-- Settings model / migrations: `Core/Settings.cs`, `SettingsMigrations.cs`, `DataLocations.cs`
+- Settings model / migrations / backup: `Core/Settings.cs`, `SettingsMigrations.cs`, `ConfigBackup.cs`, `DataLocations.cs`
 - Window rules: `ScreenPolicy.cs`, `Native/WindowsHost.cs` (fullscreen, exclusive, occupied/overlap)
 - Updates: `Updates/GitHubUpdates.cs`, `Core/AppUpdates.cs`, `InstallerUpdates.cs`
 - Hotkeys / tray: `App.Hotkeys.cs`, `Native/GlobalHotkeys.cs`, `TrayIcon.cs`
@@ -51,9 +51,9 @@ Collapsed notch/capsule/indicator: `MainWindow.Compact*.cs`, `Core/Collapsed*.cs
 
 ## Fork (Matti)
 
-- Prefer new code under `src/BrimDeck/Matti/` (see that folder’s README): click-through hold, Cursor Agent indicator, usage trend graph.
+- Prefer new code under `src/BrimDeck/Matti/` (see that folder’s README): click-through hold, Cursor Agent indicator, usage trend graph, expanded quota alerts.
 - Fork MSBuild overrides: root `Directory.Build.props`; defaults in `ForkRepositoryMetadata.targets`.
-- Branches: `main` = upstream mirror (currently v1.3.2); work lands on `matti` (`feat/*` / `fix/*` → `matti`).
+- Branches: `main` = upstream mirror (currently v1.3.3); work lands on `matti` (`feat/*` / `fix/*` → `matti`).
 
 ## Search tips
 

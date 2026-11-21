@@ -17,4 +17,4 @@ Keep changes outside this folder as small as possible so merges from [MoFeng2223
 | `MainWindow.CursorAgent.cs` | Compact-row UI for Cursor Agent status                                   |
 | `UsageTrendGraph.cs`        | Model usage trend chart drawn in model details                           |
 
-Upstream `main` is mirrored on this fork’s `main` branch and merged into `matti` when it moves (currently synced through upstream v1.3.2).
+Upstream `main` is mirrored on this fork’s `main` branch and merged into `matti` when it moves (currently synced through upstream v1.3.3).

@@ -34,7 +34,7 @@ Publishing (`scripts/Publish-Release.ps1`) passes the same values into `installe
 
 ## Upstream sync status
 
-`main` fast-forwards from [MoFeng2223/BrimDeck](https://github.com/MoFeng2223/BrimDeck) `main`. Last merged into `matti`: upstream **v1.3.2** (clipboard sync, Phone Link batteries, music expand layouts, daylight themes, occupied window rule, shelf drag/stack options, device brand updates, ZCode quota fix, and related fixes). See `releases/1.3.2.md`.
+`main` fast-forwards from [MoFeng2223/BrimDeck](https://github.com/MoFeng2223/BrimDeck) `main`. Last merged into `matti`: upstream **v1.3.3** (indicator opens as notch/capsule, pointer-section page open, monitor grid layout, WeType file share, config backup, many new AI quotas, more device brands, lyric/word highlight work, and related fixes). See `releases/1.3.3.md`.
 
 ## Upstream files this fork intentionally touches
 
@@ -51,9 +51,12 @@ Keep this list short when you add more fork behavior:
 | `src/BrimDeck/Native/WindowsHost.cs`                  | Keep fork quiet/busy poll intervals with upstream occupied/`_taken` handling.                   |
 | `src/BrimDeck/SettingsWindow.cs`                      | Reset both upstream `Occupied` and fork `ClickThroughHold` defaults.                            |
 | `src/BrimDeck/App.Hotkeys.cs`                         | Bare ClickThrough keys (Esc, …) observe instead of RegisterHotKey so other apps keep the key.   |
-| `src/BrimDeck/MainWindow.ClickThrough.cs`             | Expose `ReservesEscape` for the bare ClickThrough observer.                                     |
-| `src/BrimDeck/UsagePanel.cs`, `ModelDetails.cs`       | Quota tooltip / usage trend hooks.                                                              |
-| `src/BrimDeck/Monitor*.cs`, `Native/SystemSampler.cs` | Monitor performance and sampling tweaks.                                                        |
+| `src/BrimDeck/MainWindow.ClickThrough.cs`             | Hold pass-through with upstream shadow pass-around; `ReservesEscape` for bare Esc observer.     |
+| `src/BrimDeck/MainWindow.xaml.cs`                     | Cursor Agent watcher + motion init; keep quota-alert sizing with indicator morph.               |
+| `src/BrimDeck/MainWindow.Music.cs`                    | Compact agent badge with upstream monitor free/matrix strip args.                               |
+| `src/BrimDeck/ModelDetails.cs`                        | Usage trend chart inside upstream `RowsInView` list.                                            |
+| `src/BrimDeck/UsagePanel.cs`                          | Quota tooltip hooks.                                                                            |
+| `src/BrimDeck/Monitor*.cs`, `Native/SystemSampler.cs` | Monitor performance and sampling tweaks (keep layered redraw with free/used memory).            |
 
 New fork-only files: `Directory.Build.props`, `src/BrimDeck/ForkRepositoryMetadata.targets`, `src/BrimDeck/Matti/`, `.github/workflows/upstream-sync.yml`, `scripts/Get-RepositoryBuildProperties.ps1`, `scripts/Update-Local.ps1`, `update-local.cmd`, and this `FORK.md`.
 
