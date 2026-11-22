@@ -67,6 +67,16 @@ public partial class MainWindow
             Toolbar.Visibility = Visibility.Visible;
             AlertContent.Visibility = Visibility.Collapsed;
             if (_expanded) ShowPage(CurrentPage, animatePage: false);
+            else
+            {
+                // Do not call ShowPage while the panel is collapsed; only restore which page will show on the next open.
+                UsageContent.Visibility = Visibility.Collapsed;
+                MusicContent.Visibility = Visibility.Collapsed;
+                MonitorContent.Visibility = Visibility.Collapsed;
+                ShelfContent.Visibility = Visibility.Collapsed;
+                DevicesContent.Visibility = Visibility.Collapsed;
+                PageContent(CurrentPage).Visibility = Visibility.Visible;
+            }
         }
     }
 

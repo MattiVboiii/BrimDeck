@@ -836,7 +836,7 @@ public partial class MainWindow : Window
         _alert = alert; _alertTimer.Stop(); _alertTimer.Start();
         if (AlertOpensPanel)
         {
-            _alertOpenedPanel = !_expanded;
+            if (!_alertOpenedPanel) _alertOpenedPanel = !_expanded;
             ShowAlertPanel(alert);
             SetExpanded(true);
             return;
@@ -913,7 +913,7 @@ public partial class MainWindow : Window
         // whether the surface was last laid out as the line is kept apart.
         bool fromIndicator = _laidOutIndicator && !expanded && !line;
         _laidOutIndicator = indicator;
-        bool alerting = expanded && _alert is not null && Settings.ExpandedQuotaAlerts;
+        bool alerting = expanded && AlertContent.Visibility == Visibility.Visible;
         var alertSize = AlertPageSize;
         double contentWidth = alerting ? alertSize.Width : _pageWidth;
         double wantedHeight = alerting ? alertSize.Height : DeckPages.Size(Settings, CurrentPage).Height;
