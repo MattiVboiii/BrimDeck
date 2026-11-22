@@ -826,6 +826,7 @@ public partial class MainWindow : Window
         RenderCompact();
         if (close && _expanded && !_preview) SetExpanded(false);
         else if (!_expanded) SetExpanded(false);
+        TryShowPendingDeviceAlert();
     }
     // No alert while the panel is suppressed (full-screen rule or hidden by the user): it would not be seen, and it must not
     // appear later when the panel shows again. With ExpandedQuotaAlerts, opens a short panel (not a page tab); otherwise the
