@@ -481,10 +481,12 @@ public sealed class DeckSettings
     }
     // Mouse pass-through: hovering does not open the panel and every click goes to the window beneath; only the shortcuts open
     // it. ClickThroughPanel lets the open panel take clicks as usual; ClickThroughKeyboard lets a panel opened by a shortcut take
-    // the keyboard and Esc, which it otherwise leaves to the window in use (a game).
+    // the keyboard and Esc, which it otherwise leaves to the window in use (a game). ClickThroughHold makes the pass-through
+    // hotkey momentary (held) instead of toggling sticky ClickThrough; the switch and tray menu still toggle sticky mode.
     public bool ClickThrough { get; set; }
     public bool ClickThroughPanel { get; set; }
     public bool ClickThroughKeyboard { get; set; }
+    public bool ClickThroughHold { get; set; }
     public bool MusicPage { get; set; } = true;
     public double MusicWidth { get; set; } = 440;
     public double MusicHeight { get; set; } = 200;
@@ -739,6 +741,9 @@ public sealed class DeckSettings
     public bool DeviceChargeAlerts { get; set; } = true;
     // At or above this charge while charging, a device can raise a charge notice (DeviceLevels).
     public int DeviceChargeAlertPercent { get; set; } = Devices.DefaultChargeAlertPercent;
+    // Remembers recent battery readings on this PC (DeviceBatteryPace / device-battery-pace.json) to estimate time left and
+    // time to full on the devices page. Off by default; collects and keeps no readings while off.
+    public bool DeviceBatteryEstimates { get; set; }
     // The notch and the capsule each show the devices' batteries (CompactPart.Devices).
     public bool NotchDevices { get; set; }
     public bool CapsuleDevices { get; set; }
