@@ -10,9 +10,10 @@ namespace BrimDeck.Native;
 
 // What Windows reports about power to a normal user: nothing here needs administrator rights or installs a driver. Processor power
 // comes from the Energy Meter counters (Windows exposes the processor's RAPL registers through its own Energy Meter Interface
-// driver); a graphics adapter's board power from the driver's nvidia-smi (NvidiaSmi), and AMD's and Intel's discrete adapters' from
-// their drivers with their usage (GpuDrivers); the battery from Windows.Devices.Power; the power mode from the power API. Each
-// reader belongs to the sampling thread, as the providers in SystemSampler do; the sensor states are read from the UI thread.
+// driver); a graphics adapter's board power from its driver with its usage (GpuDrivers: NVIDIA through NVAPI's power topology,
+// AMD and Intel through theirs), with NVIDIA's nvidia-smi (NvidiaSmi) only when the driver gave no watts; the battery from
+// Windows.Devices.Power; the power mode from the power API. Each reader belongs to the sampling thread, as the providers in
+// SystemSampler do; the sensor states are read from the UI thread.
 
 // The whole machine's power (PowerResolver chooses between the sources, PowerInputs hands them over). The counters are in the query
 // only while power is wanted. A graphics adapter is asked only while it is doing work (Awake seconds after its last use): asking
@@ -104,9 +105,11 @@ internal sealed class PowerProvider(PdhQuery? pdh, Action stuck) : IDisposable
             // Identical cards are told apart by their bus, else by their order (the nth of this name).
             int ordinal = seen.GetValueOrDefault(name); seen[name] = ordinal + 1;
             string key = name + "#" + ordinal;
-            // Idle counts as under a few percent of Windows' figure (the desktop's own drawing): the helper takes about 25 MB while it
-            // runs, and starting it for an adapter that only draws the desktop is not worth it.
-            if (gpu.EngineUsage >= Busy) _busyAt[key] = now;
+            // Idle counts as under a few percent of the figure shown (Windows' engines or the driver's own): the helper takes about
+            // 25 MB while it runs, and starting it for an adapter that only draws the desktop is not worth it. The driver's meter
+            // is included so a CUDA or encode load that fills nvidia-smi / NVAPI while Windows' 3D engine stays quiet still gets
+            // board power (otherwise the strip can show ~60 W while the card draws its full 160 W).
+            if (Math.Max(gpu.EngineUsage, gpu.Usage) >= Busy) _busyAt[key] = now;
             if (!_busyAt.TryGetValue(key, out var last) || now - last > Awake)
             {
                 read.Add(new GpuPowerInput(name, Reading<double>.Unavailable(Loc.T("空闲", "idle"))));

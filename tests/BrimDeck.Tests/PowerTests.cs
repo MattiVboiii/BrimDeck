@@ -45,6 +45,12 @@ static class PowerTests
         // A whole-system meter wins over everything and is a measurement.
         var metered = PowerResolver.Resolve(new PowerInputs { SystemMeter = W(95.5), BatteryDischarge = W(30), Cpu = W(40) });
         check("Power: a system meter is measured and comes first", metered.TryGet(out var m) && m.Watts == 95.5 && !m.Estimated && m.Source == PowerSource.SystemMeter);
+        // A platform meter below the discrete GPU's board power is incomplete (PSYS / ACPI without the GPU rail): use the parts.
+        var underGpu = PowerResolver.Resolve(new PowerInputs { SystemMeter = W(53), Cpu = W(12), Gpus = [new GpuPowerInput("NVIDIA GeForce RTX 4060 Ti", W(159.6))] });
+        check("Power: a system meter below the GPU board falls back to the component sum",
+            underGpu.TryGet(out var ug) && ug.Estimated && ug.Source == PowerSource.Components && Math.Abs(ug.Watts - 171.6) < 1e-9);
+        check("Power: a system meter still wins when it covers the GPU board",
+            PowerResolver.Resolve(new PowerInputs { SystemMeter = W(220), Gpus = [new GpuPowerInput("GPU", W(160))] }).OrDefault is { Source: PowerSource.SystemMeter, Watts: 220 });
 
         // On battery the discharge is the whole machine, measured, with the parts kept for the breakdown.
         var discharging = PowerResolver.Resolve(new PowerInputs { BatteryDischarge = W(23.4), Cpu = W(9.1) });
