@@ -29,6 +29,9 @@ internal sealed class GpuProvider
     // Lists the adapters now rather than with the first reading (the smooth memory mode does it at the start, off the page's way).
     public void Describe() => _descriptions ??= new GpuDescriptions(GpuAdapters.Read, Now());
 
+    // Each process's busiest engine from the last Sample, in percent; empty while the counters are off or before a reading.
+    public IReadOnlyDictionary<int, double> ProcessUsage => _counters.ProcessUsage;
+
     // The counters are in the query only while something shows an adapter: the engine counter has an instance per process and engine,
     // often thousands, and is the costliest part of a collection. Called on every tick, before the collection. Whether the counters
     // have just joined the query (they need a first collection).
