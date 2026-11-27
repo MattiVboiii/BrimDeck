@@ -6,11 +6,11 @@ namespace BrimDeck.Native;
 
 // Each adapter's usage asked of its own driver (GpuDriverReadings says why), the way PresentMon and LibreHardwareMonitor read it:
 // NVIDIA through NVAPI (nvapi64.dll), AMD through ADL (atiadlxx.dll), Intel through its control library (ControlLib.dll), each
-// from the system folder where the driver puts it and loaded only once an adapter of that make is working. AMD's and Intel's
-// discrete adapters also give their board power here; NVIDIA's comes from nvidia-smi (PowerSensors). An adapter is asked only
-// while Windows sees it working (GpuDriverGate), and every call is guarded (SensorGuard) by the adapter's name: a driver that
-// never answers is not asked again, and the usage stays the busiest engine. Belongs to the sampling thread. stuck: the sampler
-// gives up its thread for another.
+// from the system folder where the driver puts it and loaded only once an adapter of that make is working. Discrete adapters
+// also give their board power here (NVIDIA's power topology, AMD's and Intel's own counters); NVIDIA falls back to nvidia-smi
+// in PowerSensors when NVAPI gives none. An adapter is asked only while Windows sees it working (GpuDriverGate), and every
+// call is guarded (SensorGuard) by the adapter's name: a driver that never answers is not asked again, and the usage stays the
+// busiest engine. Belongs to the sampling thread. stuck: the sampler gives up its thread for another.
 internal sealed class GpuDrivers(Action stuck)
 {
     private readonly GpuDriverGate _gate = new();
@@ -100,24 +100,31 @@ internal abstract class DriverLibrary : IGpuDriver
 // by their ids through nvapi_QueryInterface; each adapter by its PCI bus (NvAPI_GPU_GetBusId). The temperature is the GPU
 // sensor of NvAPI_GPU_GetThermalSettings (NV_GPU_THERMAL_SETTINGS, version 2: version, count, then three sensors of controller,
 // lowest, highest, current and target, all sensors asked for at once with NVAPI_THERMAL_TARGET_ALL, 15; target 1 is the GPU).
+// Board power is NvAPI_GPU_ClientPowerTopologyGetStatus (same path LibreHardwareMonitor uses): milliwatts per domain, board
+// preferred over the chip alone. nvapi64 is already loaded for usage, so this avoids nvidia-smi when the topology answers.
 internal sealed class NvidiaDriver : DriverLibrary
 {
     private const uint Initialize = 0x0150E828, EnumPhysicalGpus = 0xE5AC921F, GetBusId = 0x1BE0B8E5, GetDynamicPstatesInfoEx = 0x60DED2ED,
-        GetThermalSettings = 0xE3640A56;
+        GetThermalSettings = 0xE3640A56, ClientPowerTopologyGetStatus = 0xEDCF624E;
     private const int PstatesInts = 18, PstatesVersion = PstatesInts * 4 | 1 << 16, MaxGpus = 64;
     private const int ThermalInts = 17, ThermalVersion = ThermalInts * 4 | 2 << 16, AllSensors = 15, GpuTarget = 1;
+    private const int PowerDomains = 4, PowerDomainBoard = 1;
+    // NvPowerTopology: version, count, then PowerDomains entries of domain, reserved, power mW, reserved (Pack = 8).
+    private const int PowerTopologyInts = 2 + PowerDomains * 4, PowerTopologyVersion = PowerTopologyInts * 4 | 1 << 16;
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr QueryInterface(uint id);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int InitializeFunction();
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int EnumFunction([Out] IntPtr[] handles, out int count);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int BusIdFunction(IntPtr gpu, out uint bus);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int PstatesFunction(IntPtr gpu, [In, Out] int[] info);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int ThermalFunction(IntPtr gpu, int sensor, [In, Out] int[] settings);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int PowerTopologyFunction(IntPtr gpu, [In, Out] int[] topology);
     private ThermalFunction? _thermal;
+    private PowerTopologyFunction? _power;
     private EnumFunction? _enumerate;
     private BusIdFunction? _busId;
     private PstatesFunction? _pstates;
     private readonly Dictionary<uint, IntPtr> _gpus = [];
-    private readonly int[] _info = new int[PstatesInts], _thermalSettings = new int[ThermalInts];
+    private readonly int[] _info = new int[PstatesInts], _thermalSettings = new int[ThermalInts], _powerTopology = new int[PowerTopologyInts];
     public bool Temperatures;
 
     protected override string FileName => "nvapi64.dll";
@@ -128,7 +135,7 @@ internal sealed class NvidiaDriver : DriverLibrary
         T? Function<T>(uint id) where T : Delegate => query(id) is var address && address != IntPtr.Zero ? Marshal.GetDelegateForFunctionPointer<T>(address) : null;
         if (Function<InitializeFunction>(Initialize) is not { } initialize || initialize() != 0) return false;
         _enumerate = Function<EnumFunction>(EnumPhysicalGpus); _busId = Function<BusIdFunction>(GetBusId); _pstates = Function<PstatesFunction>(GetDynamicPstatesInfoEx);
-        _thermal = Function<ThermalFunction>(GetThermalSettings);
+        _thermal = Function<ThermalFunction>(GetThermalSettings); _power = Function<PowerTopologyFunction>(ClientPowerTopologyGetStatus);
         return _enumerate is not null && _busId is not null && _pstates is not null;
     }
 
@@ -154,13 +161,33 @@ internal sealed class NvidiaDriver : DriverLibrary
         Array.Clear(info); info[0] = PstatesVersion;
         var handle = Handle(gpu)!.Value;
         if (_pstates!(handle, info) != 0) { Forget(); return default; }
-        double? celsius = null;
+        double? celsius = null, watts = PowerWatts(handle);
         var thermal = _thermalSettings;
         Array.Clear(thermal); thermal[0] = ThermalVersion;
         if (Temperatures && _thermal is not null && _thermal(handle, AllSensors, thermal) == 0)
             for (int i = 0; i < Math.Min(thermal[1], 3); i++)
                 if (thermal[2 + i * 5 + 4] == GpuTarget) { celsius = thermal[2 + i * 5 + 3]; break; }
-        return ((info[2] & 1) != 0 ? (uint)info[3] : null, null, celsius);
+        return ((info[2] & 1) != 0 ? (uint)info[3] : null, watts, celsius);
+    }
+
+    // Board domain when present, else the highest domain the topology returns, in watts; null when the call is missing or fails.
+    private double? PowerWatts(IntPtr handle)
+    {
+        if (_power is null) return null;
+        var topology = _powerTopology;
+        Array.Clear(topology); topology[0] = PowerTopologyVersion;
+        if (_power(handle, topology) != 0) return null;
+        int count = Math.Clamp(topology[1], 0, PowerDomains);
+        double? board = null, best = null;
+        for (int i = 0; i < count; i++)
+        {
+            int at = 2 + i * 4;
+            double watts = (uint)topology[at + 2] / 1000.0;
+            if (!PowerResolver.Plausible(watts) || watts <= 0) continue;
+            if (topology[at] == PowerDomainBoard) board = watts;
+            if (best is null || watts > best) best = watts;
+        }
+        return board ?? best;
     }
 }
 
