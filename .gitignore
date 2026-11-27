@@ -33,6 +33,7 @@ AGENTS.md
 .claude/
 .agents/
 .codex/
+.cursor/
 
 # Local design drafts
 output/
