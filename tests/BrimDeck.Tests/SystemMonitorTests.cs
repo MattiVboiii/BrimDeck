@@ -103,19 +103,23 @@ static class SystemMonitorTests
     {
         ProcessSample[] list =
         [
-            new(1, "Chrome", 10, 300, "chrome.exe"), new(2, "Chrome", 30, 100, "CHROME.EXE"), new(3, "Code", 25, 900, "code.exe"),
-            new(4, "System", 1, 50), new(5, "Chrome", 5, 200, "chrome.exe")
+            new(1, "Chrome", 10, 300, "chrome.exe") { GpuPercent = 4 }, new(2, "Chrome", 30, 100, "CHROME.EXE") { GpuPercent = 12 },
+            new(3, "Code", 25, 900, "code.exe") { GpuPercent = 40 }, new(4, "System", 1, 50) { GpuPercent = 1 },
+            new(5, "Chrome", 5, 200, "chrome.exe") { GpuPercent = 2 }
         ];
         var byCpu = ProcessSample.Folded(list, ProcessSort.Cpu);
-        check("Monitor folding sums an app's processes", byCpu[0] is { Pid: 2, CpuPercent: 45, MemoryBytes: 600, Members.Count: 3 });
+        check("Monitor folding sums an app's processes", byCpu[0] is { Pid: 2, CpuPercent: 45, MemoryBytes: 600, GpuPercent: 18, Members.Count: 3 });
         check("Monitor folding ranks by CPU", byCpu.Select(p => p.Pid).SequenceEqual([2, 3, 4]));
         check("Monitor folded members are heaviest first", byCpu[0].Members.Select(m => m.CpuPercent).SequenceEqual([30d, 10, 5]));
         check("Monitor a lone process keeps no members", byCpu[1].Members.Count == 0 && byCpu[2].Id == "pid 4");
         var byMemory = ProcessSample.Folded(list, ProcessSort.Memory);
         check("Monitor folding ranks by memory", byMemory.Select(p => p.Pid).SequenceEqual([3, 1, 4]) && byMemory[1].MemoryBytes == 600);
+        var byGpu = ProcessSample.Folded(list, ProcessSort.Gpu);
+        check("Monitor folding ranks by GPU", byGpu.Select(p => p.Pid).SequenceEqual([3, 2, 4]) && byGpu[1].GpuPercent == 18);
         check("Monitor folding an empty list", ProcessSample.Folded([], ProcessSort.Cpu).Count == 0);
-        var lists = new ProcessList(byCpu, byMemory);
-        check("Monitor process list picks the ranking", lists.Ranked(ProcessSort.Memory) == byMemory && lists.Ranked(ProcessSort.Cpu) == byCpu);
+        var lists = new ProcessList(byCpu, byMemory, byGpu);
+        check("Monitor process list picks the ranking", lists.Ranked(ProcessSort.Memory) == byMemory && lists.Ranked(ProcessSort.Cpu) == byCpu
+            && lists.Ranked(ProcessSort.Gpu) == byGpu);
     }
 
     private static void Ranking(Action<string, bool> check)
@@ -171,6 +175,8 @@ static class SystemMonitorTests
         check("Monitor percent", MonitorFormat.Percent(.374) == "37" && MonitorFormat.Percent(1.4) == "100" && MonitorFormat.Percent(double.NaN) == "0");
         check("Monitor process share", MonitorFormat.ProcessShare(250, 10) == "25" && MonitorFormat.ProcessShare(12, 8) == "1.5"
             && MonitorFormat.ProcessShare(5000, 8) == "100" && MonitorFormat.ProcessShare(5, 0) == "5.0");
+        check("Monitor process GPU", MonitorFormat.ProcessGpu(4.3) == "4.3" && MonitorFormat.ProcessGpu(12) == "12"
+            && MonitorFormat.ProcessGpu(150) == "100" && MonitorFormat.ProcessGpu(double.NaN) == "0.0");
         check("Monitor rates", MonitorFormat.Rate(84_200) == new MonitorFormat.Quantity("84", "KB/s") && MonitorFormat.Rate(1_240_000) == new MonitorFormat.Quantity("1.2", "MB/s")
             && MonitorFormat.Rate(2_500_000_000) == new MonitorFormat.Quantity("2.5", "GB/s") && MonitorFormat.Rate(999_600).Unit == "MB/s" && MonitorFormat.Rate(-5).Number == "0");
         check("Monitor gigabytes", MonitorFormat.Gigabytes(13_314_398_618) == "12.4" && MonitorFormat.GigabytesCompact(34_359_738_368) == "32"
