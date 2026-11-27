@@ -409,7 +409,8 @@ internal sealed class SystemSampler : IDisposable
         if (cpuStart) _cpuRestart = false;
         var cpu = !readCpu ? Reading<CpuSample>.Unavailable(Why.Waiting) : cpuPrime ? PrimeCpu(cpuCollected) : cpuSoon ? _lastCpu : _cpu!.Sample(cpuCollected); var gpus = gpuSoon ? _lastGpus : _gpu.Sample(gpuCollected);
         _lastCpu = cpu; _lastGpus = gpus;
-        // Processes after the adapters: their GPU column uses the same engine counters just summed (GpuCounters.ProcessUsage).
+        // Processes after the adapters: their GPU column uses the same engine counters just summed (GpuProvider.ProcessUsage),
+        // or none when that reading failed, so a stale share is not kept. A skipped collection leaves the last good shares.
         if (!_listProcesses) { _lastProcesses = Reading<ProcessList>.Unavailable(Why.Waiting); _processesAt = double.NegativeInfinity; _processes.Forget(); }
         else if (listProcesses || !_lastProcesses.HasValue || now - _processesAt >= ProcessSeconds)
         {
