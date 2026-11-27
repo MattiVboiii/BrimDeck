@@ -60,6 +60,7 @@ public partial class MainWindow
             MonitorContent.Visibility = Visibility.Collapsed;
             ShelfContent.Visibility = Visibility.Collapsed;
             DevicesContent.Visibility = Visibility.Collapsed;
+            SyncMusicWash();
         }
         else
         {

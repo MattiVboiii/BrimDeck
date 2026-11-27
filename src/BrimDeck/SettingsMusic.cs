@@ -258,7 +258,12 @@ public sealed partial class SettingsWindow
                     "Applies once the equalizer is switched on in the collapsed content. When always shown, it also shows while no music plays, reading all system sound.")),
             Toggle(Loc.T("模拟逐字高亮", "Simulate word highlighting"), S.MusicSimulatedKaraoke,
                 v => Change(s => s.MusicSimulatedKaraoke = v),
-                help: Loc.T("歌词没有逐字时间时，估算进度让歌词逐字亮起。可能与演唱不同步，展开和收起时都适用。", "Lights up lyrics without word timings word by word, from an estimate. It may not match the vocals. Applies when expanded and collapsed.")));
+                help: Loc.T("歌词没有逐字时间时，估算进度让歌词逐字亮起。可能与演唱不同步，展开和收起时都适用。", "Lights up lyrics without word timings word by word, from an estimate. It may not match the vocals. Applies when expanded and collapsed.")),
+            MusicChoice(Loc.T("歌名与歌手顺序", "Title and artist order"), S.MusicCaptionOrder,
+                [(MusicCaptionOrder.TitleArtist, Loc.T("歌名 · 歌手", "Title · Artist")), (MusicCaptionOrder.ArtistTitle, Loc.T("歌手 · 歌名", "Artist · Title"))],
+                v => Change(s => s.MusicCaptionOrder = v),
+                help: Loc.T("收起中间文字、切歌提示、纯音乐回退，以及展开页合并的歌名行中，歌名与歌手的先后顺序。",
+                    "Order of the song name and artist in the collapsed middle text, track-change notice, instrumental fallback, and the expanded page's merged title line.")));
         SectionTitle(Loc.T("收起时", "When collapsed"));
         // The instrumental choice belongs to the lyric, so it shows only while the middle text is the lyric.
         var text = new List<FrameworkElement> { MusicChoice(Loc.T("中间文字", "Middle text"), S.MusicText, new[] { (CompactMusicText.None, Loc.T("无", "None")), (CompactMusicText.Title, Loc.T("歌名", "Title")), (CompactMusicText.Lyrics, Loc.T("歌词", "Lyrics")) },
@@ -280,7 +285,13 @@ public sealed partial class SettingsWindow
                 help: Loc.T("音乐暂停时，收起状态下隐藏所选内容，恢复播放后重新显示。“文字”指按“中间文字”显示的歌名或歌词；“全部”指文字和封面，不包括律动条。",
                     "While music is paused, the chosen part is hidden when collapsed and comes back when playback resumes. \"Text\" is the title or lyric shown by \"Middle text\"; \"Both\" is the text and the cover, not the equalizer.")),
             Toggle(Loc.T("切歌时短暂显示歌名", "Briefly show the title on a track change"), S.MusicTrackNotice, v => Change(s => s.MusicTrackNotice = v)),
-            Toggle(Loc.T("显示封面", "Show cover"), S.MusicCompactCover, v => Change(s => s.MusicCompactCover = v))]);
+            Toggle(Loc.T("显示封面", "Show cover"), S.MusicCompactCover, v => Change(s => s.MusicCompactCover = v)),
+            MusicChoice(Loc.T("背景", "Backdrop"), S.MusicCompactBackdrop,
+                [(MusicBackdrop.None, Loc.T("无", "None")), (MusicBackdrop.Cover, Loc.T("模糊封面", "Blurred cover")), (MusicBackdrop.Glow, Loc.T("封面色晕", "Cover glow"))],
+                v => Change(s => s.MusicCompactBackdrop = v),
+                help: Loc.T("收起播放音乐时：无则只用主题表面；模糊封面用当前封面的模糊图；封面色晕用从封面取的淡色。",
+                    "While collapsed and music is playing: None keeps the plain surface; Blurred cover uses a soft copy of the artwork; Cover glow uses a tint taken from it."),
+                width: 320)]);
         SectionTitle(Loc.T("展开时", "When expanded"));
         var lyricColor = Row(Loc.T("当前歌词颜色", "Current lyric color"), ColorSwatches("MusicLyricColor", Loc.T("当前歌词颜色 ", "Current lyric color "),
             S.MusicLyricColor, S.MusicLyricCustomColor, UI.Brush(PanelTheme.Hex("textPrimary")),
@@ -289,7 +300,13 @@ public sealed partial class SettingsWindow
         var rows = new List<FrameworkElement>
         {
             Toggle(Loc.T("显示封面", "Show cover"), S.MusicPageCover, v => { Change(s => s.MusicPageCover = v); ShowPage(_page); }, S.MusicPage),
-            Toggle(Loc.T("显示歌词", "Show lyrics"), S.LyricsEnabled, v => { Change(s => s.LyricsEnabled = v); ShowPage(_page); }, S.MusicPage), lyricColor
+            Toggle(Loc.T("显示歌词", "Show lyrics"), S.LyricsEnabled, v => { Change(s => s.LyricsEnabled = v); ShowPage(_page); }, S.MusicPage), lyricColor,
+            MusicChoice(Loc.T("背景", "Backdrop"), S.MusicBackdrop,
+                [(MusicBackdrop.None, Loc.T("无", "None")), (MusicBackdrop.Cover, Loc.T("模糊封面", "Blurred cover")), (MusicBackdrop.Glow, Loc.T("封面色晕", "Cover glow"))],
+                v => Change(s => s.MusicBackdrop = v),
+                help: Loc.T("展开音乐页时：无则与其他页面一样只用主题表面；模糊封面用当前封面的模糊图；封面色晕用从封面取的淡色。",
+                    "On the expanded music page: None keeps the same plain surface as other pages; Blurred cover uses a soft copy of the artwork; Cover glow uses a tint taken from it."),
+                enabled: S.MusicPage, width: 320),
         };
         if (PageLayoutCards() is { } layout) rows.Add(layout);
         Group([.. rows]);
