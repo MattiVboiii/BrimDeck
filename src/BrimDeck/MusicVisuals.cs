@@ -321,7 +321,15 @@ internal sealed class MusicMarquee : FrameworkElement
     public Brush Foreground
     {
         get => _foreground ?? UI.Brush(Look.Primary);
-        set { if (ReferenceEquals(_foreground, value)) return; _foreground = value; _karaokeFaded = null; _karaokeColor = null; Painter.InvalidateVisual(); }
+        set
+        {
+            if (ReferenceEquals(_foreground, value)) return;
+            _foreground = value; _karaokeFaded = null; _karaokeColor = null;
+            // The cached text carries the old brush, and with InkFade so do the faded ends: both are made again on the next draw.
+            _formatted = null; _faded = false;
+            if (_inkFade) _fadeWidth = -1;
+            Painter.InvalidateVisual();
+        }
     }
     // With a backdrop, the text is drawn by a child that re-enables ClearType below this element's clip, and the edge fades are
     // drawn over the text in the backdrop color instead of an opacity mask. A clip or a mask on the drawing element forces grayscale.
@@ -440,12 +448,14 @@ internal sealed class MusicMarquee : FrameworkElement
         // sliding fill inside the character being sung, and fade everything after it by index.
         if (Wrap)
         {
+            // A surrogate pair is lit as one character: the range starts at its high half and spans both halves.
+            if (front > 0 && char.IsLowSurrogate(Text[front])) front--;
             int after = front + 1;
             if (after < total && char.IsLowSurrogate(Text[after])) after++;
             if (after < total) text.SetForegroundBrush(KaraokeFaded, after, total - after);
-            double left = edges[front], right = edges[front + 1];
+            double left = edges[front], right = edges[after];
             if (right <= left) right = left + Math.Max(1, FontSize * .45);
-            double wrapAt = left + (sung - front) * (right - left);
+            double wrapAt = left + Math.Clamp((sung - front) / (after - front), 0, 1) * (right - left);
             text.SetForegroundBrush(SweepEdge(origin + wrapAt - soft / 2, origin + wrapAt + soft / 2), front, Math.Max(1, after - front));
             return;
         }

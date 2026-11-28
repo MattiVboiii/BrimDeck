@@ -21,6 +21,22 @@ public partial class MainWindow
     private Color? _musicWashColor;
     private Color? _musicWashScrimColor;
     private bool _musicWashCompact;
+    // The song the staged cover and glow came from. A cover reloaded for the same song keeps them meanwhile; another song
+    // without a cover drops them.
+    private MediaTrack? _musicWashTrack;
+    private void DropStaleMusicWash()
+    {
+        if (_mediaCover is { } && _mediaTrack is { } playing) { _musicWashTrack = playing; return; }
+        if (_mediaCover is not null || _mediaTrack is not { } track || _musicWashTrack is not { } staged) return;
+        if (staged.Id == track.Id && SameMediaSong(staged, track)) return;
+        _musicWashTrack = null; _musicWashCover = null; _musicWashColor = null; _musicWashFront = null;
+        foreach (var (layer, image) in new[] { _musicWashA, _musicWashB })
+        {
+            Soft.Glide(layer, UIElement.OpacityProperty, 0, false);
+            image.Source = null;
+        }
+        if (_musicWashGlow is not null) _musicWashGlow.Fill = null;
+    }
 
     // Mounted on IslandContent so the blur stays composed while the expanded page is hidden. Sized to Island (not
     // IslandContent): ExpandedContent stays Hidden when collapsed and would otherwise stretch the wash to the open page.
@@ -127,6 +143,7 @@ public partial class MainWindow
     private void WarmMusicWash(bool crossfadeCover = false)
     {
         EnsureMusicWash();
+        DropStaleMusicWash();
         FitMusicWash();
         if (_mediaCover is { } cover && !ReferenceEquals(_musicWashCover, cover))
             ShowMusicWashCover(cover, crossfadeCover);
@@ -177,6 +194,7 @@ public partial class MainWindow
     private void SyncMusicWash()
     {
         EnsureMusicWash();
+        DropStaleMusicWash();
         var mode = MusicWashMode;
         bool pendingCover = mode == MusicBackdrop.Cover && _mediaCover is { } cover && !ReferenceEquals(_musicWashCover, cover);
         bool pendingGlow = mode == MusicBackdrop.Glow && _coverGlow is { } glow && _musicWashColor != glow;

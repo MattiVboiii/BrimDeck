@@ -12,13 +12,13 @@ namespace BrimDeck;
 public sealed partial class SettingsWindow
 {
     // keepPreview marks the segments alone as preview controls, so a press on the rest of the row still ends the preview.
-    private FrameworkElement MusicChoice<T>(string title, T selected, (T Value, string Label)[] options, Action<T> change, bool enabled = true, bool keepPreview = false, string? help = null, double width = 292) where T : notnull
+    private FrameworkElement MusicChoice<T>(string title, T selected, (T Value, string Label)[] options, Action<T> change, bool enabled = true, bool keepPreview = false, string? help = null, double width = 292, string? group = null) where T : notnull
     {
         var strip = new UniformGrid { Columns = options.Length, Width = width, IsEnabled = enabled };
         if (keepPreview) KeepPreview(strip);
         foreach (var option in options)
         {
-            var choice = new RadioButton { Style = (Style)FindResource("SettingsSegment"), Content = option.Label, GroupName = title, IsChecked = EqualityComparer<T>.Default.Equals(option.Value, selected) };
+            var choice = new RadioButton { Style = (Style)FindResource("SettingsSegment"), Content = option.Label, GroupName = group ?? title, IsChecked = EqualityComparer<T>.Default.Equals(option.Value, selected) };
             AutomationProperties.SetName(choice, title + " " + option.Label); choice.Checked += (_, _) => change(option.Value); strip.Children.Add(choice);
         }
         // Only the options are turned off: the row's info mark still shows its description on hover.
@@ -291,7 +291,7 @@ public sealed partial class SettingsWindow
                 v => Change(s => s.MusicCompactBackdrop = v),
                 help: Loc.T("收起播放音乐时：无则只用主题表面；模糊封面用当前封面的模糊图；封面色晕用从封面取的淡色。",
                     "While collapsed and music is playing: None keeps the plain surface; Blurred cover uses a soft copy of the artwork; Cover glow uses a tint taken from it."),
-                width: 320)]);
+                width: 320, group: nameof(DeckSettings.MusicCompactBackdrop))]);
         SectionTitle(Loc.T("展开时", "When expanded"));
         var lyricColor = Row(Loc.T("当前歌词颜色", "Current lyric color"), ColorSwatches("MusicLyricColor", Loc.T("当前歌词颜色 ", "Current lyric color "),
             S.MusicLyricColor, S.MusicLyricCustomColor, UI.Brush(PanelTheme.Hex("textPrimary")),
@@ -306,7 +306,7 @@ public sealed partial class SettingsWindow
                 v => Change(s => s.MusicBackdrop = v),
                 help: Loc.T("展开音乐页时：无则与其他页面一样只用主题表面；模糊封面用当前封面的模糊图；封面色晕用从封面取的淡色。",
                     "On the expanded music page: None keeps the same plain surface as other pages; Blurred cover uses a soft copy of the artwork; Cover glow uses a tint taken from it."),
-                enabled: S.MusicPage, width: 320),
+                enabled: S.MusicPage, width: 320, group: nameof(DeckSettings.MusicBackdrop)),
         };
         if (PageLayoutCards() is { } layout) rows.Add(layout);
         Group([.. rows]);
