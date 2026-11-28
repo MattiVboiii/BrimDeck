@@ -79,6 +79,11 @@ static class PowerTests
         (string, double?)[] twins = [("NVIDIA RTX 4090", 210.5), ("NVIDIA RTX 4090", 198.2)];
         check("Power: identical adapters are read by their order, not one counted twice", PowerResolver.PickGpu(twins, "NVIDIA RTX 4090", 0).OrDefault == 210.5 && PowerResolver.PickGpu(twins, "NVIDIA RTX 4090", 1).OrDefault == 198.2
             && !PowerResolver.PickGpu(twins, "NVIDIA RTX 4090", 2).HasValue);
+        // First card already has driver watts (80 W); the second falls back without a bus and must use ordinal 1 (20 W), not 0 again.
+        (string, double?)[] fallbackTwins = [("NVIDIA RTX 4090", 80.0), ("NVIDIA RTX 4090", 20.0)];
+        check("Power: a fallback after a driver-watts twin uses the next line, not the first card's again",
+            PowerResolver.PickGpu(fallbackTwins, "NVIDIA RTX 4090", 1).OrDefault == 20.0
+            && PowerResolver.PickGpu(fallbackTwins, "NVIDIA RTX 4090", 0).OrDefault == 80.0);
         // One line for two identical cards (the driver's first lines not all in yet) is the first card's, not both cards' (210 W, not 420 W).
         (string, double?)[] single = [("NVIDIA RTX 4090", 210.0)];
         check("Power: a single line is not read again for a second identical adapter", PowerResolver.PickGpu(single, "NVIDIA RTX 4090", 0).OrDefault == 210

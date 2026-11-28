@@ -10,7 +10,7 @@ namespace BrimDeck.Core;
 //   2. Battery: the power the battery supplies while the machine runs on it (Windows.Devices.Power.Battery's charge rate), which is
 //      all that the machine draws, display and fans included. Measured, but only on battery.
 //   3. Components: the processor package (RAPL, through the Energy Meter counters), memory where it has a meter of its own, and each
-//      discrete graphics adapter that reports its board power (NVIDIA through NVAPI, else nvidia-smi; AMD and Intel through their
+//      discrete graphics adapter that reports its board power (NVIDIA through the driver's nvidia-smi, AMD and Intel through their
 //      drivers; an integrated adapter's is inside the package). A sum of what can be read: the display, drives, fans,
 //      other chips and the power supply's losses are not in it, so it is labelled an estimate and never shown as a measurement.
 //   4. None: the reading says why there is none, and the page shows a dash with that reason.

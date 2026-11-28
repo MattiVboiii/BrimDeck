@@ -10,10 +10,9 @@ namespace BrimDeck.Native;
 
 // What Windows reports about power to a normal user: nothing here needs administrator rights or installs a driver. Processor power
 // comes from the Energy Meter counters (Windows exposes the processor's RAPL registers through its own Energy Meter Interface
-// driver); a graphics adapter's board power from its driver with its usage (GpuDrivers: NVIDIA through NVAPI's power topology,
-// AMD and Intel through theirs), with NVIDIA's nvidia-smi (NvidiaSmi) only when the driver gave no watts; the battery from
-// Windows.Devices.Power; the power mode from the power API. Each reader belongs to the sampling thread, as the providers in
-// SystemSampler do; the sensor states are read from the UI thread.
+// driver); a graphics adapter's board power from the driver's nvidia-smi (NvidiaSmi), and AMD's and Intel's discrete adapters' from
+// their drivers with their usage (GpuDrivers); the battery from Windows.Devices.Power; the power mode from the power API. Each
+// reader belongs to the sampling thread, as the providers in SystemSampler do; the sensor states are read from the UI thread.
 
 // The whole machine's power (PowerResolver chooses between the sources, PowerInputs hands them over). The counters are in the query
 // only while power is wanted. A graphics adapter is asked only while it is doing work (Awake seconds after its last use): asking
@@ -94,6 +93,10 @@ internal sealed class PowerProvider(PdhQuery? pdh, Action stuck) : IDisposable
         foreach (var gpu in gpus)
         {
             string name = gpu.Name ?? "GPU";
+            // Identical NVIDIA cards are told apart by their bus, else by their order (the nth of this name). The ordinal is
+            // counted for every NVIDIA adapter, including those that already have driver watts, so a later fallback without a
+            // bus does not reuse the first card's nvidia-smi line.
+            int? ordinal = GpuDriverReadings.TakeNvidiaOrdinal(seen, gpu.VendorId, name);
             // AMD's and Intel's discrete adapters gave their power with their usage (GpuDrivers), while they work.
             if (gpu.DriverWatts is { } watts)
             {
@@ -101,9 +104,7 @@ internal sealed class PowerProvider(PdhQuery? pdh, Action stuck) : IDisposable
                 continue;
             }
             // NVIDIA's through nvidia-smi, and only an adapter that is working.
-            if (gpu.VendorId != GpuDriverReadings.Nvidia && !(gpu.VendorId == 0 && name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase))) continue;
-            // Identical cards are told apart by their bus, else by their order (the nth of this name).
-            int ordinal = seen.GetValueOrDefault(name); seen[name] = ordinal + 1;
+            if (ordinal is null) continue;
             string key = name + "#" + ordinal;
             // Idle counts as under a few percent of the figure shown (Windows' engines or the driver's own): the helper takes about
             // 25 MB while it runs, and starting it for an adapter that only draws the desktop is not worth it. The driver's meter
@@ -117,7 +118,7 @@ internal sealed class PowerProvider(PdhQuery? pdh, Action stuck) : IDisposable
             }
             if (_smi is not null && PowerResolver.RestartDue(_smi.Ended, now, _smiStartedAt)) { _smi.Dispose(); _smi = null; }
             if (_smi is null) { _smi = new NvidiaSmi(); _smiStartedAt = now; }
-            read.Add(new GpuPowerInput(name, _smi.Read(GpuDriverReadings.Bus(gpu.Location), name, ordinal)));
+            read.Add(new GpuPowerInput(name, _smi.Read(GpuDriverReadings.Bus(gpu.Location), name, ordinal.Value)));
         }
         // Every adapter idle for good: the helper ends, and its memory goes with it.
         if (_smi is not null && _busyAt.Values.All(at => now - at > Awake)) { _smi.Dispose(); _smi = null; }
