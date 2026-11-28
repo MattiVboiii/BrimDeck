@@ -13,6 +13,11 @@ public partial class MainWindow
     // Player / lyrics column split (MusicLayout.DefaultInfoShare). Session only; the drag grip writes it.
     private double _musicInfoShare = MusicLayout.DefaultInfoShare;
     private FrameworkElement? _musicSplitInfo, _musicSplitLyrics;
+    // Beside the cover the titles take what the cover leaves of the information column (MusicColumns), so a drag resizes them.
+    private FrameworkElement? _musicSplitTitles;
+    private double _musicSplitTitlesTrim;
+    // The cover sizes the page was built with; a drag that ends with other sizes builds the page again.
+    private (double Above, double Beside) _musicSplitCover;
     private Border? _musicSplitGrip;
     private double _musicSplitBody, _musicSplitBarsClear;
     private bool _musicSplitDrag;
@@ -79,9 +84,9 @@ public partial class MainWindow
         return block;
     }
 
-    // Current (wraps 2–3 rows) with the next line under it. No previous line.
+    // Current (wraps 2–3 rows) with the next line under it when `showNext` (the room holds it). No previous line.
     private FrameworkElement BuildTimedLyrics(MusicMetrics c, double currentFont, double currentLine,
-        int wrapLines, TextAlignment align, Visibility visibility)
+        int wrapLines, bool showNext, TextAlignment align, Visibility visibility)
     {
         _lyricAdvancing = false;
         wrapLines = Math.Clamp(Math.Max(2, wrapLines), 2, 3);
@@ -115,13 +120,16 @@ public partial class MainWindow
         _lyricCurrHost.SizeChanged += (_, _) => { if (!_lyricAdvancing) FitLyricCurrentHost(); };
         stack.Children.Add(_lyricCurrHost);
 
-        _lyricNext = LyricNeighbor(_lyricNextBrush, c.Lyric, c.LyricLine, align);
-        _lyricNextHost = LyricHost(_lyricNext, out _lyricNextShift, out _);
-        stack.Children.Add(_lyricNextHost);
+        if (showNext)
+        {
+            _lyricNext = LyricNeighbor(_lyricNextBrush, c.Lyric, c.LyricLine, align);
+            _lyricNextHost = LyricHost(_lyricNext, out _lyricNextShift, out _);
+            stack.Children.Add(_lyricNextHost);
+        }
 
         var view = new Border
         {
-            Height = _lyricCurHeight + _lyricDimLine,
+            Height = _lyricCurHeight + (showNext ? _lyricDimLine : 0),
             VerticalAlignment = VerticalAlignment.Center,
             Visibility = visibility,
             ClipToBounds = true,
@@ -206,7 +214,7 @@ public partial class MainWindow
 
     private void FinishLyricHandoff()
     {
-        if (!_lyricAdvancing) return;
+        if (!_lyricAdvancing || _lyricCurrent is null) { _lyricAdvancing = false; return; }
         _lyricAdvancing = false;
         ApplyLyricTexts(_lyricPendingCurr, _lyricPendingNext);
         _lyricShown = _lyricPendingCurr;
@@ -309,6 +317,15 @@ public partial class MainWindow
         {
             _musicSplitDrag = false;
             Paint(grip.IsMouseOver);
+            // The cover above the titles, or beside them, follows the column's width: once the drag ends, a split that gives it
+            // another size or place builds the page again.
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (_musicSplitGrip != grip || !IsMusicPage) return;
+                var settled = layout.Columns(true, cover, _musicInfoShare);
+                if ((settled.Cover, settled.SideCover) == _musicSplitCover) return;
+                _musicRenderKey = ""; RenderMusic();
+            });
         };
         _musicSplitGrip = grip;
         return grip;
@@ -317,6 +334,7 @@ public partial class MainWindow
     private void ApplyMusicLyricsSplit(MusicColumns columns, double inset)
     {
         if (_musicSplitInfo is { } info) info.Width = columns.InfoWidth;
+        if (_musicSplitTitles is { } titles) titles.Width = Math.Max(0, columns.InfoWidth - _musicSplitTitlesTrim);
         if (_musicSplitLyrics is { } lyrics)
         {
             lyrics.Width = Math.Max(0, columns.LyricsWidth - _musicSplitBarsClear);

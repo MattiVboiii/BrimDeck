@@ -369,7 +369,9 @@ public partial class MainWindow
             bool own = requested.IsAppleMusic ? lyrics.Source == LyricsService.AppleSource
                 : !requested.IsKugou || lyrics.Source == LyricsService.KugouLocalSource;
             if (hit) ShowLyrics(lyrics, requested);
-            else if (!waitLocal || own || attempt >= 2) { ShowLyrics(Lyrics.Empty, requested); break; }
+            else if (!waitLocal || own) { ShowLyrics(Lyrics.Empty, requested); break; }
+            // After the last timed retry the area says there are none, but a lyric file the player writes later still shows.
+            else if (attempt >= 2) ShowLyrics(Lyrics.Empty, requested);
             if (hit && own) break;
             try
             {
@@ -587,7 +589,7 @@ public partial class MainWindow
         // Keep the transport layer attached: replacing a hovered button restarts
         // hit testing and its fade-in on every metadata, artwork or lyric update.
         _handover.Hold(MusicContent, keep: _musicControls);
-        _musicSeek = null; _musicElapsed = null; _musicDuration = null; _musicEqualizer = null; _musicTitle = null; _lyricCurrent = null; _lyricNext = null; _musicMessage = null; _musicInfo = null;
+        _musicSeek = null; _musicElapsed = null; _musicDuration = null; _musicEqualizer = null; _musicTitle = null; _lyricCurrent = null; _lyricNext = null; _lyricAdvancing = false; _musicMessage = null; _musicInfo = null;
         MusicContent.Margin = new Thickness(c.Side, 0, c.Side, c.Bottom);
         if (track is null)
         {
@@ -671,8 +673,10 @@ public partial class MainWindow
             if (hasLyrics && lyricLines > 0 && synchronized)
             {
                 var align = centered ? TextAlignment.Center : TextAlignment.Left;
-                var (font, line, wrap) = MusicLayout.CurrentLyricMetrics(c, layout.UpperHeight, lyrics: true);
-                middle.Children.Add(BuildTimedLyrics(c, font, line, wrap, align, layout.ShowMessage ? Visibility.Collapsed : Visibility.Visible));
+                // The lyrics take the room under the titles, as MusicLayout.Calculate counts their lines.
+                double room = layout.MiddleHeight - c.MiddleGap;
+                var (font, line, wrap) = MusicLayout.CurrentLyricMetrics(c, room, lyrics: true);
+                middle.Children.Add(BuildTimedLyrics(c, font, line, wrap, room >= line * wrap + c.LyricLine, align, layout.ShowMessage ? Visibility.Collapsed : Visibility.Visible));
             }
             else if (hasLyrics && lyricLines > 0)
             {
@@ -926,7 +930,8 @@ public partial class MainWindow
         bool MeetsBars(double top, double height) => !columns.EqualizerBelow && top < barsTop + c.Equalizer + 2 && top + height > barsTop - 2;
         var upper = new Grid { Height = columns.Height, VerticalAlignment = VerticalAlignment.Top };
         body.Children.Add(upper);
-        _musicSplitInfo = null; _musicSplitLyrics = null; _musicSplitGrip = null; _musicSplitBarsClear = 0;
+        _musicSplitInfo = null; _musicSplitLyrics = null; _musicSplitGrip = null; _musicSplitBarsClear = 0; _musicSplitTitles = null;
+        _musicSplitCover = (columns.Cover, columns.SideCover);
         // The cover stands above the titles, or beside them in a part too short for that (MusicLayout.Columns sizes it and says
         // which); the divider and the lyrics' column stay where they are, and beside the cover the titles take the room it
         // leaves of the information column.
@@ -981,7 +986,8 @@ public partial class MainWindow
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal };
             row.Children.Add(Art(sideArt, over: false));
-            titles.Width = Math.Max(0, columns.InfoWidth - sideArt - c.MiddleGap - (titleMeetsBars ? barsRoom : 0));
+            _musicSplitTitlesTrim = sideArt + c.MiddleGap + (titleMeetsBars ? barsRoom : 0);
+            titles.Width = Math.Max(0, columns.InfoWidth - _musicSplitTitlesTrim); _musicSplitTitles = titles;
             titles.Margin = new Thickness(c.MiddleGap, 0, 0, 0);
             titles.VerticalAlignment = VerticalAlignment.Center;
             row.Children.Add(titles); info.Children.Add(row);
@@ -1012,7 +1018,7 @@ public partial class MainWindow
         var lyricsVisibility = message.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
         if (hasLyrics && synchronized)
         {
-            middle.Children.Add(BuildTimedLyrics(c, columns.CurrentLyric, columns.CurrentLine, columns.WrapLines, TextAlignment.Left, lyricsVisibility));
+            middle.Children.Add(BuildTimedLyrics(c, columns.CurrentLyric, columns.CurrentLine, columns.WrapLines, columns.After > 0, TextAlignment.Left, lyricsVisibility));
         }
         else if (hasLyrics)
         {
