@@ -289,6 +289,15 @@ public sealed record ProcessList(IReadOnlyList<ProcessSample> Top, IReadOnlyList
         ProcessSort.Gpu => ByGpu,
         _ => Top
     };
+
+    // The app as the chosen sort ranks it, so a card keeps that sort's member order; another ranking when it is only listed there.
+    public ProcessSample? For(string id, ProcessSort sort)
+    {
+        if (Ranked(sort).FirstOrDefault(sample => sample.Id == id) is { } ranked) return ranked;
+        return (sort == ProcessSort.Cpu ? null : Top.FirstOrDefault(sample => sample.Id == id))
+            ?? (sort == ProcessSort.Memory ? null : ByMemory.FirstOrDefault(sample => sample.Id == id))
+            ?? (sort == ProcessSort.Gpu ? null : ByGpu.FirstOrDefault(sample => sample.Id == id));
+    }
 }
 
 // DownHistory and UpHistory are the last network readings, oldest first, bytes per second; empty until there are two.

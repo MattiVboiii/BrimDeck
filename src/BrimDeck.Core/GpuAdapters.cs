@@ -50,8 +50,11 @@ public sealed class GpuCounters
     private readonly Dictionary<(int Pid, ulong Luid, int Physical, int Engine), double> _processEngines = [];
     private Dictionary<int, double> _processUsage = [];
 
-    // Each process's busiest engine from the last Sum, in percent; empty until a reading.
+    // Each process's busiest engine from the last Sum, in percent; empty until a reading or after ForgetProcessUsage.
     public IReadOnlyDictionary<int, double> ProcessUsage => _processUsage;
+
+    // Drops the last process shares: a failed or closed reading must not keep them (GpuProvider.Sample).
+    public void ForgetProcessUsage() => _processUsage = [];
 
     public Dictionary<ulong, GpuTotals> Sum(IReadOnlyList<(string Instance, double Value)> engines,
         IReadOnlyList<(string Instance, double Value)> dedicated, IReadOnlyList<(string Instance, double Value)> shared)

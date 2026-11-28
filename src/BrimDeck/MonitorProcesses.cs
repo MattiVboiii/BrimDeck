@@ -81,6 +81,8 @@ internal sealed class ProcessListView : FrameworkElement
     }
     private double ColumnWidth(int columns) => columns <= 1 ? ActualWidth : (ActualWidth - ColumnGap * (columns - 1)) / columns;
 
+    public ProcessSort Sort => _sort;
+
     // A new sort from another panel or from this one's pills: the rows reorder as a new reading would, and the pill slides.
     public void SetSort(ProcessSort sort, bool motion)
     {

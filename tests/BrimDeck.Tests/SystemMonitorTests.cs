@@ -120,6 +120,23 @@ static class SystemMonitorTests
         var lists = new ProcessList(byCpu, byMemory, byGpu);
         check("Monitor process list picks the ranking", lists.Ranked(ProcessSort.Memory) == byMemory && lists.Ranked(ProcessSort.Cpu) == byCpu
             && lists.Ranked(ProcessSort.Gpu) == byGpu);
+        ProcessSample[] crowded =
+        [
+            new(1, "a", 60, 1, "app.exe") { GpuPercent = 1 }, new(2, "b", 50, 1, "app.exe") { GpuPercent = 2 },
+            new(3, "c", 40, 1, "app.exe") { GpuPercent = 3 }, new(4, "d", 30, 1, "app.exe") { GpuPercent = 4 },
+            new(5, "e", 20, 1, "app.exe") { GpuPercent = 5 }, new(6, "f", 10, 1, "app.exe") { GpuPercent = 90 }
+        ];
+        var cpuCrowd = ProcessSample.Folded(crowded, ProcessSort.Cpu);
+        var gpuCrowd = ProcessSample.Folded(crowded, ProcessSort.Gpu);
+        var memCrowd = ProcessSample.Folded(crowded, ProcessSort.Memory);
+        var crowdedList = new ProcessList(cpuCrowd, memCrowd, gpuCrowd);
+        check("Monitor a card prefers the current sort's members",
+            crowdedList.For("app.exe", ProcessSort.Gpu)!.Members.Take(5).Any(m => m.GpuPercent == 90)
+            && !crowdedList.For("app.exe", ProcessSort.Cpu)!.Members.Take(5).Any(m => m.GpuPercent == 90)
+            && ReferenceEquals(crowdedList.For("app.exe", ProcessSort.Gpu), gpuCrowd[0]));
+        var onlyGpu = new ProcessList([], [], [new ProcessSample(9, "Rare", 1, 1, "rare.exe") { GpuPercent = 50 }]);
+        check("Monitor a card falls back to another ranking", onlyGpu.For("rare.exe", ProcessSort.Cpu) is { GpuPercent: 50 });
+        check("Monitor a card is gone when it leaves every ranking", onlyGpu.For("missing", ProcessSort.Gpu) is null);
     }
 
     private static void Ranking(Action<string, bool> check)
